@@ -217,6 +217,7 @@ Epoch: 12
 License: GPLv2+ and LGPLv2+ and BSD
 Group: Development/Tools
 URL: http://www.qemu.org/
+Obsoletes: qemu-kvm-ev, qemu-img-ev, qemu-kvm-common-ev
 
 Source0: %{name}-%{version}.tar.gz
 

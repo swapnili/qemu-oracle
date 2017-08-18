@@ -689,7 +689,6 @@ static binaries
 Summary: QEMU system emulator for x86
 Group: Development/Tools
 Requires: %{name}-system-x86-core = %{epoch}:%{version}-%{release}
-%{requires_all_block_modules}
 
 %description system-x86
 QEMU is a generic and open source processor emulator which achieves a good

@@ -1990,6 +1990,12 @@ chmod --quiet 666 /dev/kvm || :
 %endif
 %endif
 
+%post system-x86-core
+%if 0%{?have_kvm}
+udevadm control --reload >/dev/null 2>&1 || :
+udevadm trigger --subsystem-match=misc --sysname-match=kvm --action=add || :
+chmod --quiet 666 /dev/kvm || :
+%endif
 
 %post common
 getent group kvm >/dev/null || groupadd -g 36 -r kvm

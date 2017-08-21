@@ -1819,6 +1819,8 @@ rm -rf %{buildroot}%{_datadir}/%{name}/bios.bin
 rm -rf %{buildroot}%{_datadir}/%{name}/bios-256k.bin
 # Provided by package sgabios
 rm -rf %{buildroot}%{_datadir}/%{name}/sgabios.bin
+# We don't package the setuid root qemu-bridge-helper script
+rm -rf %{buildroot}%{_libexecdir}/qemu-bridge-helper
 
 %if 0%{?have_all_emul}
 %else
@@ -2093,7 +2095,6 @@ getent passwd qemu >/dev/null || \
 %if 0%{?have_virtfs}
 %{_bindir}/virtfs-proxy-helper
 %endif
-%attr(4755, root, root) %{_libexecdir}/qemu-bridge-helper
 %config(noreplace) %{_sysconfdir}/sasl2/qemu.conf
 %config(noreplace) %{_sysconfdir}/modprobe.d/kvm.conf
 %dir %{_sysconfdir}/qemu

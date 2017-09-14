@@ -60,7 +60,7 @@
 %global have_usb 0
 # Block devices like RBD or glusterfs or ssh
 %global have_rbd 1
-%global have_gluster 0
+%global have_gluster 1
 %global have_ssh 0
 %global have_iscsi 1
 # SmartCard?

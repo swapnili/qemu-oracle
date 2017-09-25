@@ -138,7 +138,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void spapr_tce_table_pre_save(void *opaque)
+static int spapr_tce_table_pre_save(void *opaque)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
 
@@ -147,6 +147,8 @@ static void spapr_tce_table_pre_save(void *opaque)
 
     trace_spapr_iommu_pre_save(tcet->liobn, tcet->mig_nb_table,
                                tcet->bus_offset, tcet->page_shift);
+
+    return 0;
 }
 
 static uint64_t spapr_tce_get_min_page_size(MemoryRegion *iommu)

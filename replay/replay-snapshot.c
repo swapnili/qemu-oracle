@@ -20,10 +20,12 @@
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
 
-static void replay_pre_save(void *opaque)
+static int replay_pre_save(void *opaque)
 {
     ReplayState *state = opaque;
     state->file_offset = ftell(replay_file);
+
+    return 0;
 }
 
 static int replay_post_load(void *opaque, int version_id)

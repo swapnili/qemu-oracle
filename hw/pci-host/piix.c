@@ -585,7 +585,7 @@ static int piix3_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void piix3_pre_save(void *opaque)
+static int piix3_pre_save(void *opaque)
 {
     int i;
     PIIX3State *piix3 = opaque;
@@ -594,6 +594,8 @@ static void piix3_pre_save(void *opaque)
         piix3->pci_irq_levels_vmstate[i] =
             pci_bus_get_irq_level(piix3->dev.bus, i);
     }
+
+    return 0;
 }
 
 static bool piix3_rcr_needed(void *opaque)

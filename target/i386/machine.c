@@ -308,7 +308,7 @@ static const VMStateInfo vmstate_hack_uint64_as_uint32 = {
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_hack_uint64_as_uint32, uint64_t)
 #endif
 
-static void cpu_pre_save(void *opaque)
+static int cpu_pre_save(void *opaque)
 {
     X86CPU *cpu = opaque;
     CPUX86State *env = &cpu->env;
@@ -339,7 +339,7 @@ static void cpu_pre_save(void *opaque)
         env->segs[R_GS].flags &= ~(env->segs[R_GS].flags & DESC_DPL_MASK);
         env->segs[R_SS].flags &= ~(env->segs[R_SS].flags & DESC_DPL_MASK);
     }
-
+    return 0;
 }
 
 static int cpu_post_load(void *opaque, int version_id)

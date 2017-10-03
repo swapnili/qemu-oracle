@@ -187,6 +187,11 @@
 %global hostqemu x86_64-softmmu/qemu-system-x86_64
 %endif
 
+# QMP regdump tool is only supported on X86_64
+%ifarch x86_64
+%global have_qmpregdump 1
+%endif
+
 # All block-* modules should be listed here.
 %global requires_all_block_modules                               \
 Requires: %{name}-block-curl = %{epoch}:%{version}-%{release}    \
@@ -251,6 +256,11 @@ Source13: qemu-kvm.sh
 
 # /etc/modprobe.d/kvm.conf
 Source20: kvm.conf
+
+%if 0%{?have_qmpregdump}
+# /usr/bin/qmp-regdump
+Source21: qmp-regdump
+%endif
 
 # documentation deps
 BuildRequires: texinfo
@@ -1929,6 +1939,11 @@ done < %{_sourcedir}/qemu.binfmt
 # Install rules to use the bridge helper with libvirt's virbr0
 install -m 0644 %{_sourcedir}/bridge.conf %{buildroot}%{_sysconfdir}/qemu
 
+%if 0%{?have_qmpregdump}
+# Install in /usr/bin
+install -m 0755 %{_sourcedir}/qmp-regdump %{buildroot}%{_bindir}/
+%endif
+
 # When building using 'rpmbuild' or 'fedpkg local', RPATHs can be left in
 # the binaries and libraries (although this doesn't occur when
 # building in Koji, for some unknown reason). Some discussion here:
@@ -2100,6 +2115,9 @@ getent passwd qemu >/dev/null || \
 %dir %{_sysconfdir}/qemu
 %config(noreplace) %{_sysconfdir}/qemu/bridge.conf
 %dir %{_libdir}/qemu
+%if 0%{?have_qmpregdump}
+%config(noreplace) %{_bindir}/qmp-regdump
+%endif
 
 %if 0%{?have_ksm}
 %files -n ksm

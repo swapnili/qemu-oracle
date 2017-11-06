@@ -187,7 +187,7 @@
 %global hostqemu x86_64-softmmu/qemu-system-x86_64
 %endif
 
-# QMP regdump tool is only supported on X86_64
+# QMP regdump tool (and sosreport plugin) is only supported on X86_64
 %ifarch x86_64
 %global have_qmpregdump 1
 %endif
@@ -260,6 +260,8 @@ Source20: kvm.conf
 %if 0%{?have_qmpregdump}
 # /usr/bin/qmp-regdump
 Source21: qmp-regdump
+# /usr/lib/<python sitelib>/sos/plugins/qemu_regdump.py
+Source22: qemu_regdump.py
 %endif
 
 Patch0001: 0001-virtio-Set-PCI-subsystem-vendor-ID-to-Oracle.patch
@@ -1944,6 +1946,9 @@ install -m 0644 %{_sourcedir}/bridge.conf %{buildroot}%{_sysconfdir}/qemu
 %if 0%{?have_qmpregdump}
 # Install in /usr/bin
 install -m 0755 %{_sourcedir}/qmp-regdump %{buildroot}%{_bindir}/
+# Install in /usr/lib/<python sitelib>/sos/plugins/
+mkdir -p %{buildroot}%{python_sitelib}/sos/plugins
+install -m 0755 %{_sourcedir}/qemu_regdump.py %{buildroot}%{python_sitelib}/sos/plugins
 %endif
 
 # When building using 'rpmbuild' or 'fedpkg local', RPATHs can be left in
@@ -2119,6 +2124,7 @@ getent passwd qemu >/dev/null || \
 %dir %{_libdir}/qemu
 %if 0%{?have_qmpregdump}
 %config(noreplace) %{_bindir}/qmp-regdump
+%config(noreplace) %{python_sitelib}/sos/plugins/qemu_regdump.py*
 %endif
 
 %if 0%{?have_ksm}

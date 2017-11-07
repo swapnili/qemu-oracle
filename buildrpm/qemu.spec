@@ -627,6 +627,7 @@ This package provides client and server tools for QEMU's ivshmem device.
 Summary: QEMU metapackage for KVM support
 Group: Development/Tools
 Requires: qemu-%{kvm_package} = %{epoch}:%{version}-%{release}
+Obsoletes: %{name}-kvm-common, %{name}-kvm-tools
 
 %description kvm
 This is a meta-package that provides a qemu-system-<arch> package for native

@@ -1,0 +1,54 @@
+From 2a103663cfea5b3d4cf16a34224d9945293e40f7 Mon Sep 17 00:00:00 2001
+From: Karl Heubaum <karl.heubaum@oracle.com>
+Date: Wed, 8 Nov 2017 12:39:50 -0600
+Subject: [PATCH] virtio: Set PCI subsystem vendor ID to Oracle
+
+Multiple companies are packaging Red Hat's Windows virtio drivers and
+submitting them for Windows Hardware Quality Labs (WHQL) testing.
+Windows associates a driver with a PCI device via the device's vendor
+ID, device ID, subsystem vendor ID, and subsystem device ID. The
+vendor ID advertised by QEMU's virtio implementation is Red Hat's,
+so the Windows device drivers will all associate themselves with
+Red Hat's vendor ID. That creates a problem, because the drivers
+published by all of these companies will essentially look the same
+as far as Microsoft and its Windows Update service are concerned.
+If you installed Oracle's Windows virtio drivers in a KVM/QEMU
+guest and then ran Windows Update, it's possible that another
+company's drivers could have a later version number and WHQL
+certification date, in which case Windows would install that
+company's drivers because they look like a newer version of the
+drivers for a given virtio device. To solve this, set the PCI
+subsystem vendor ID advertised by QEMU's virtio implementation
+to Oracle's vendor ID. Every company that's packaging Red Hat's
+Windows virtio drivers will have to do the same thing, but
+with their vendor ID. In theory, Windows Update will pick the
+virtio drivers that best match the advertised PCI hardware, so
+Oracle's QEMU package will trigger the installation (and update)
+of Oracle's Windows virtio drivers.
+
+Signed-off-by: Karl Heubaum <karl.heubaum@oracle.com>
+---
+ hw/virtio/virtio-pci.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hw/virtio/virtio-pci.c b/hw/virtio/virtio-pci.c
+index f9b7244808..ebdddc873a 100644
+--- a/hw/virtio/virtio-pci.c
++++ b/hw/virtio/virtio-pci.c
+@@ -1940,6 +1940,13 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
+     k->realize = virtio_pci_realize;
+     k->exit = virtio_pci_exit;
+     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
++    /*
++     * Set the virtio device's PCI subsystem vendor ID to Oracle's
++     * vendor ID so Microsoft's Windows Update matches Oracle's
++     * Windows virtio drivers to this device instead of some other
++     * vendor's Windows virtio drivers.
++     */
++    k->subsystem_vendor_id = 0x108E;
+     k->revision = VIRTIO_PCI_ABI_VERSION;
+     k->class_id = PCI_CLASS_OTHERS;
+     vpciklass->parent_dc_realize = dc->realize;
+-- 
+2.14.1
+

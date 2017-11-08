@@ -262,6 +262,8 @@ Source20: kvm.conf
 Source21: qmp-regdump
 %endif
 
+Patch0001: 0001-virtio-Set-PCI-subsystem-vendor-ID-to-Oracle.patch
+
 # documentation deps
 BuildRequires: texinfo
 # For /usr/bin/pod2man

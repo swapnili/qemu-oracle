@@ -1,4 +1,4 @@
-From 2a103663cfea5b3d4cf16a34224d9945293e40f7 Mon Sep 17 00:00:00 2001
+From d2a0e585dcc9c52667e795e744369dfea1519ad7 Mon Sep 17 00:00:00 2001
 From: Karl Heubaum <karl.heubaum@oracle.com>
 Date: Wed, 8 Nov 2017 12:39:50 -0600
 Subject: [PATCH] virtio: Set PCI subsystem vendor ID to Oracle
@@ -28,14 +28,14 @@ of Oracle's Windows virtio drivers.
 
 Signed-off-by: Karl Heubaum <karl.heubaum@oracle.com>
 ---
- hw/virtio/virtio-pci.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ hw/virtio/virtio-pci.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
 diff --git a/hw/virtio/virtio-pci.c b/hw/virtio/virtio-pci.c
-index f9b7244808..ebdddc873a 100644
+index f9b7244808..3bd53c7c28 100644
 --- a/hw/virtio/virtio-pci.c
 +++ b/hw/virtio/virtio-pci.c
-@@ -1940,6 +1940,13 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
+@@ -1940,6 +1940,17 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
      k->realize = virtio_pci_realize;
      k->exit = virtio_pci_exit;
      k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
@@ -43,9 +43,13 @@ index f9b7244808..ebdddc873a 100644
 +     * Set the virtio device's PCI subsystem vendor ID to Oracle's
 +     * vendor ID so Microsoft's Windows Update matches Oracle's
 +     * Windows virtio drivers to this device instead of some other
-+     * vendor's Windows virtio drivers.
++     * vendor's Windows virtio drivers. Also set the PCI subsystem
++     * ID to the virtio default value since QEMU's PCI device
++     * registration code won't set it to the default if a
++     * subsystem vendor ID is set.
 +     */
 +    k->subsystem_vendor_id = 0x108E;
++    k->subsystem_id = PCI_SUBDEVICE_ID_QEMU;
      k->revision = VIRTIO_PCI_ABI_VERSION;
      k->class_id = PCI_CLASS_OTHERS;
      vpciklass->parent_dc_realize = dc->realize;

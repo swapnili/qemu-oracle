@@ -718,9 +718,9 @@ platform.
 Summary: QEMU system emulator for x86
 Group: Development/Tools
 Requires: %{name}-common = %{epoch}:%{version}-%{release}
-Requires: seabios-bin
+Requires: seabios-bin >= 1.10.2-4
 Requires: sgabios-bin
-Requires: seavgabios-bin
+Requires: seavgabios-bin >= 1.10.2-4
 %if 0%{?have_edk2}
 Requires: edk2-ovmf
 %endif

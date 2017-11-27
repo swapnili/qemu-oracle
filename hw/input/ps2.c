@@ -1097,20 +1097,24 @@ static void ps2_common_post_load(PS2State *s)
     int i;
     int tmp_data[PS2_QUEUE_SIZE];
 
+    if (q->count < 0 || q->rptr < 0 || q->rptr >= sizeof(q->data)) {
+        error_report("PS2 peripheral state may be missing due to invalid queue pointer");
+        return;
+    }
+
     /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
     size = q->count > PS2_QUEUE_SIZE ? 0 : q->count;
 
     /* move the queue elements to the start of data array */
-    if (size > 0) {
-        for (i = 0; i < size; i++) {
-            /* move the queue elements to the temporary buffer */
-            tmp_data[i] = q->data[q->rptr];
-            if (++q->rptr == 256) {
-                q->rptr = 0;
-            }
+    for (i = 0; i < size; i++) {
+        /* move the queue elements to the temporary buffer */
+        tmp_data[i] = q->data[q->rptr];
+        if (++q->rptr == 256) {
+            q->rptr = 0;
         }
-        memcpy(q->data, tmp_data, size);
     }
+    memcpy(q->data, tmp_data, size);
+
     /* reset rptr/wptr/count */
     q->rptr = 0;
     q->wptr = size;

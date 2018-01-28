@@ -110,7 +110,7 @@
 # Enable VNC PNG compression?
 %global have_vnc_png 0
 # Support VirtFS?
-%global have_virtfs 0
+%global have_virtfs 1
 # Support curl?
 %global have_curl 0
 # Support migration over RDMA?
@@ -124,7 +124,7 @@
 # Support libcap-ng?
 %global have_libcapng 0
 # Support libattr?
-%global have_attr 0
+%global have_attr 1
 # Support Linux vhost-net module?
 %global have_vhost_net 1
 # Support NFS?

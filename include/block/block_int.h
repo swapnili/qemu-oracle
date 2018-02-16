@@ -27,6 +27,7 @@
 #include "block/accounting.h"
 #include "block/block.h"
 #include "qemu/option.h"
+#include "block/aio-wait.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
 #include "qemu/timer.h"
@@ -599,7 +600,8 @@ struct BlockDriverState {
     unsigned int in_flight;
     unsigned int serialising_in_flight;
 
-    bool wakeup;
+    /* Kicked to signal main loop when a request completes. */
+    AioWait wait;
 
     /* Offset after the highest byte written to */
     uint64_t wr_highest_offset;

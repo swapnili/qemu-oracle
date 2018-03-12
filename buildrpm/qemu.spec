@@ -138,7 +138,7 @@
 # Support libseccomp?
 %global have_seccomp 1
 # Support coroutine pool?
-%global have_coroutine_pool 0
+%global have_coroutine_pool 1
 # Support libvnuma?
 %global have_numa 1
 # Support thread-caching malloc?
@@ -148,7 +148,7 @@
 # Support replication?
 %global have_replication 1
 # Support virtio sockets for host-guest communication?
-%global have_vhost_vsock 0
+%global have_vhost_vsock 1
 # Support OpenGL?
 %global have_opengl 0
 # Support virgl rendering?

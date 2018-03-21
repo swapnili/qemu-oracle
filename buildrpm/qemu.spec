@@ -298,7 +298,7 @@ BuildRequires: alsa-lib-devel
 %endif
 %if 0%{?have_iscsi}
 # iscsi drive support
-BuildRequires: libiscsi-devel
+BuildRequires: libiscsi-devel >= 1.9.0-8
 %endif
 %if 0%{?have_nfs}
 # NFS drive support

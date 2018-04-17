@@ -18,7 +18,7 @@
 #include <sys/utsname.h>
 
 #include <linux/kvm.h>
-#include <linux/kvm_para.h>
+#include "standard-headers/asm-x86/kvm_para.h"
 
 #include "qemu-common.h"
 #include "cpu.h"

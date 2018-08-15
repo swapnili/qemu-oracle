@@ -2091,6 +2091,8 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_UINT16("rx_queue_size", VirtIONet, net_conf.rx_queue_size,
                        VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
+    DEFINE_PROP_BIT64("standby", VirtIONet, host_features,
+                    VIRTIO_NET_F_STANDBY, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

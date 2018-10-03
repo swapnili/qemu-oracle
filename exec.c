@@ -197,7 +197,6 @@ typedef struct subpage_t {
 #define PHYS_SECTION_WATCH 3
 
 static void io_mem_init(void);
-static void memory_map_init(void);
 static void tcg_commit(MemoryListener *listener);
 
 static MemoryRegion io_mem_watch;
@@ -3165,7 +3164,7 @@ static void tcg_commit(MemoryListener *listener)
     tlb_flush(cpuas->cpu);
 }
 
-static void memory_map_init(void)
+void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
 

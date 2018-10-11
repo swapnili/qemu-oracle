@@ -49,6 +49,32 @@
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
 
+static void process_config_write(ProcMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+
+    qemu_mutex_lock_iothread();
+    pci_default_write_config(remote_pci_dev, conf->addr, conf->val, conf->l);
+    qemu_mutex_unlock_iothread();
+}
+
+static void process_config_read(ProcMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+    uint32_t val;
+    int wait;
+
+    wait = msg->fds[0];
+
+    qemu_mutex_lock_iothread();
+    val = pci_default_read_config(remote_pci_dev, conf->addr, conf->l);
+    qemu_mutex_unlock_iothread();
+
+    notify_proxy(wait, val);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static void process_msg(GIOCondition cond, ProcChannel *chan)
 {
     ProcMsg *msg = NULL;
@@ -70,8 +96,10 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
     case INIT:
         break;
     case CONF_WRITE:
+        process_config_write(msg);
         break;
     case CONF_READ:
+        process_config_read(msg);
         break;
     default:
         error_setg(&err, "Unknown command");

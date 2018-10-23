@@ -32,6 +32,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "qapi-event.h"
 
 #define MSIX_CAP_LENGTH 12
 
@@ -1168,6 +1169,8 @@ void vfio_pci_write_config(PCIDevice *pdev,
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     uint32_t val_le = cpu_to_le32(val);
+    bool may_notify = false;
+    bool master_was = false;
 
     trace_vfio_pci_write_config(vdev->vbasedev.name, addr, val, len);
 
@@ -1176,6 +1179,14 @@ void vfio_pci_write_config(PCIDevice *pdev,
                 != len) {
         error_report("%s(%s, 0x%x, 0x%x, 0x%x) failed: %m",
                      __func__, vdev->vbasedev.name, addr, val, len);
+    }
+
+    /* Bus Master Enabling/Disabling */
+    if (pdev->failover_primary && current_cpu &&
+        range_covers_byte(addr, len, PCI_COMMAND)) {
+        master_was = !!(pci_get_word(pdev->config + PCI_COMMAND) &
+                        PCI_COMMAND_MASTER);
+        may_notify = true;
     }
 
     /* MSI/MSI-X Enabling/Disabling */
@@ -1232,6 +1243,20 @@ void vfio_pci_write_config(PCIDevice *pdev,
     } else {
         /* Write everything to QEMU to keep emulated bits correct */
         pci_default_write_config(pdev, addr, val, len);
+    }
+
+    if (may_notify) {
+        bool master_now = !!(pci_get_word(pdev->config + PCI_COMMAND) &
+                             PCI_COMMAND_MASTER);
+        if (master_was != master_now) {
+            const char *n;
+            gchar *path;
+
+            n = pdev->qdev.id ? pdev->qdev.id : vdev->vbasedev.name;
+            path = object_get_canonical_path(OBJECT(vdev));
+            qapi_event_send_failover_primary_changed(!!n, n, path,
+                                                     master_now, &error_abort);
+        }
     }
 }
 

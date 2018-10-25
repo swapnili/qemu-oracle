@@ -1157,6 +1157,7 @@ struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     char model_id[48];
+    CPUCaches *cache_info;
 };
 
 static X86CPUDefinition builtin_x86_defs[] = {

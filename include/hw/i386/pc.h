@@ -391,6 +391,14 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "EPYC-IBPB-" TYPE_X86_CPU,\
         .property = "xlevel",\
         .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,\
+        .property = "pku",\
+        .value    = "off",\
+    },{\
+        .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,\
+        .property = "pku",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_2_11 \

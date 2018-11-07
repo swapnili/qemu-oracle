@@ -75,7 +75,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
     return getpagesize();
 }
 
-void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
+void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared, off_t start)
 {
     int flags;
     int guardfd;
@@ -130,7 +130,8 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     flags |= shared ? MAP_SHARED : MAP_PRIVATE;
     offset = QEMU_ALIGN_UP((uintptr_t)guardptr, align) - (uintptr_t)guardptr;
 
-    ptr = mmap(guardptr + offset, size, PROT_READ | PROT_WRITE, flags, fd, 0);
+    ptr = mmap(guardptr + offset, size, PROT_READ | PROT_WRITE, flags, fd,
+               start);
 
     if (ptr == MAP_FAILED) {
         munmap(guardptr, total);

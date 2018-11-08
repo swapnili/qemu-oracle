@@ -38,6 +38,7 @@
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
+static void vfio_failover_notify(VFIOPCIDevice *vdev, bool status);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -1249,13 +1250,7 @@ void vfio_pci_write_config(PCIDevice *pdev,
         bool master_now = !!(pci_get_word(pdev->config + PCI_COMMAND) &
                              PCI_COMMAND_MASTER);
         if (master_was != master_now) {
-            const char *n;
-            gchar *path;
-
-            n = pdev->qdev.id ? pdev->qdev.id : vdev->vbasedev.name;
-            path = object_get_canonical_path(OBJECT(vdev));
-            qapi_event_send_failover_primary_changed(!!n, n, path,
-                                                     master_now, &error_abort);
+            vfio_failover_notify(vdev, master_now);
         }
     }
 }
@@ -2647,6 +2642,18 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static void vfio_failover_notify(VFIOPCIDevice *vdev, bool status)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    const char *n;
+    gchar *path;
+
+    n = pdev->qdev.id ? pdev->qdev.id : vdev->vbasedev.name;
+    path = object_get_canonical_path(OBJECT(vdev));
+    qapi_event_send_failover_primary_changed(!!n, n, path,
+                                             status, &error_abort);
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -2917,10 +2924,26 @@ static void vfio_instance_finalize(Object *obj)
     vfio_put_group(group);
 }
 
+static void vfio_exit_failover_notify(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+
+    /*
+     * Guest driver may not get the chance to disable bus mastering
+     * before the device object gets to be unrealized. In that event,
+     * send out a "disabled" notification on behalf of guest driver.
+     */
+    if (pdev->failover_primary &&
+        pdev->bus_master_enable_region.enabled) {
+        vfio_failover_notify(vdev, false);
+    }
+}
+
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
 
+    vfio_exit_failover_notify(vdev);
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);

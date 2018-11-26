@@ -822,7 +822,7 @@ static const MemoryRegionOps nvme_mmio_ops = {
     .write = nvme_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 2,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };

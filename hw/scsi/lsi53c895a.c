@@ -310,6 +310,18 @@ static inline int lsi_irq_on_rsl(LSIState *s)
     return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
 }
 
+static lsi_request *get_pending_req(LSIState *s)
+{
+    lsi_request *p;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->pending) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
 static void lsi_soft_reset(LSIState *s)
 {
     DPRINTF("Reset\n");
@@ -450,7 +462,6 @@ static void lsi_update_irq(LSIState *s)
     PCIDevice *d = PCI_DEVICE(s);
     int level;
     static int last_level;
-    lsi_request *p;
 
     /* It's unclear whether the DIP/SIP bits should be cleared when the
        Interrupt Status Registers are cleared or when istat0 is read.
@@ -481,14 +492,14 @@ static void lsi_update_irq(LSIState *s)
     }
     pci_set_irq(d, level);
 
-    if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
+    if (!s->current && !level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
+        lsi_request *p;
+
         DPRINTF("Handled IRQs & disconnected, looking for pending "
                 "processes\n");
-        QTAILQ_FOREACH(p, &s->queue, next) {
-            if (p->pending) {
-                lsi_reselect(s, p);
-                break;
-            }
+        p = get_pending_req(s);
+        if (p) {
+            lsi_reselect(s, p);
         }
     }
 }
@@ -1070,11 +1081,12 @@ static void lsi_wait_reselect(LSIState *s)
 
     DPRINTF("Wait Reselect\n");
 
-    QTAILQ_FOREACH(p, &s->queue, next) {
-        if (p->pending) {
-            lsi_reselect(s, p);
-            break;
-        }
+    if (s->current) {
+        return;
+    }
+    p = get_pending_req(s);
+    if (p) {
+        lsi_reselect(s, p);
     }
     if (s->current == NULL) {
         s->waiting = 1;
@@ -1263,6 +1275,18 @@ again:
             case 1: /* Disconnect */
                 DPRINTF("Wait Disconnect\n");
                 s->scntl1 &= ~LSI_SCNTL1_CON;
+                /* FIXME: this is not entirely correct; the target need not ask
+                 * for reselection until it has to send data, while here we force a
+                 * reselection as soon as the bus is free.  The correct flow would
+                 * reselect before lsi_transfer_data and disconnect as soon as
+                 * DMA ends.
+                 */
+                if (!s->current) {
+                    lsi_request *p = get_pending_req(s);
+                    if (p) {
+                        lsi_reselect(s, p);
+                    }
+                }
                 break;
             case 2: /* Wait Reselect */
                 if (!lsi_irq_on_rsl(s)) {

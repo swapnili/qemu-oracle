@@ -24,6 +24,7 @@
 #define QEMU_PROXY_H
 
 #include "io/proxy-link.h"
+#include "hw/proxy/memory-sync.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -44,6 +45,7 @@ typedef struct PCIProxyDev {
 
     ProxyLinkState *proxy_link;
 
+    RemoteMemSync *sync;
     EventNotifier intr;
     EventNotifier resample;
 

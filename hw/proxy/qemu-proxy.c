@@ -201,3 +201,31 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
         }
     }
 }
+
+static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,
+                                bool write, hwaddr addr, uint64_t *val,
+                                unsigned size, bool memory)
+{
+    ProcMsg msg;
+
+    memset(&msg, 0, sizeof(ProcMsg));
+
+    msg.bytestream = 0;
+    msg.size = sizeof(msg.data1);
+    msg.data1.bar_access.addr = mr->addr + addr;
+    msg.data1.bar_access.size = size;
+    msg.data1.bar_access.memory = memory;
+
+    if (write) {
+        msg.cmd = BAR_WRITE;
+        msg.data1.bar_access.val = *val;
+    }
+
+    proxy_proc_send(proxy_link, &msg);
+}
+
+void proxy_default_bar_write(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
+                             uint64_t val, unsigned size, bool memory)
+{
+    send_bar_access_msg(dev->proxy_link, mr, true, addr, &val, size, memory);
+}

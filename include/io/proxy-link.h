@@ -56,6 +56,7 @@ typedef struct ProxyLinkState ProxyLinkState;
  * CONF_READ        PCI config. space read
  * CONF_WRITE       PCI config. space write
  * SYNC_SYSMEM      Shares QEMU's RAM with remote device's RAM
+ * BAR_WRITE        Writes to PCI BAR region
  *
  */
 typedef enum {
@@ -63,6 +64,7 @@ typedef enum {
     CONF_READ,
     CONF_WRITE,
     SYNC_SYSMEM,
+    BAR_WRITE,
     MAX,
 } proc_cmd_t;
 
@@ -85,6 +87,13 @@ typedef struct {
 } sync_sysmem_msg_t;
 
 typedef struct {
+    hwaddr addr;
+    uint64_t val;
+    unsigned size;
+    bool memory;
+} bar_access_msg_t;
+
+typedef struct {
     proc_cmd_t cmd;
     int bytestream;
     size_t size;
@@ -92,6 +101,7 @@ typedef struct {
     union {
         uint64_t u64;
         sync_sysmem_msg_t sync_sysmem;
+        bar_access_msg_t bar_access;
     } data1;
 
     int fds[REMOTE_MAX_FDS];

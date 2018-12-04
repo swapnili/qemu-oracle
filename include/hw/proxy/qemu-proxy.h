@@ -77,5 +77,10 @@ typedef struct PCIProxyDevClass {
 
 int remote_spawn(PCIProxyDev *pdev, const char *command, Error **errp);
 
+void proxy_default_bar_write(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
+                             uint64_t val, unsigned size, bool memory);
+
+uint64_t proxy_default_bar_read(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
+                                unsigned size, bool memory);
 
 #endif /* QEMU_PROXY_H */

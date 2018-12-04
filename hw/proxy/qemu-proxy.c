@@ -42,6 +42,8 @@
 #include "qapi/qmp/qstring.h"
 #include "sysemu/sysemu.h"
 #include "hw/proxy/qemu-proxy.h"
+#include "hw/proxy/memory-sync.h"
+#include "qom/object.h"
 
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
 
@@ -200,6 +202,10 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
             error_propagate(errp, local_err);
         }
     }
+
+    dev->sync = REMOTE_MEM_SYNC(object_new(TYPE_MEMORY_LISTENER));
+
+    configure_memory_sync(dev->sync, dev->proxy_link);
 }
 
 static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,

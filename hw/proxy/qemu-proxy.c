@@ -207,6 +207,7 @@ static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,
                                 unsigned size, bool memory)
 {
     ProcMsg msg;
+    int wait;
 
     memset(&msg, 0, sizeof(ProcMsg));
 
@@ -219,13 +220,34 @@ static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,
     if (write) {
         msg.cmd = BAR_WRITE;
         msg.data1.bar_access.val = *val;
+    } else {
+        wait = GET_REMOTE_WAIT;
+
+        msg.cmd = BAR_READ;
+        msg.num_fds = 1;
+        msg.fds[0] = wait;
     }
 
     proxy_proc_send(proxy_link, &msg);
+
+    if (!write) {
+        *val = wait_for_remote(wait);
+        PUT_REMOTE_WAIT(wait);
+    }
 }
 
 void proxy_default_bar_write(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
                              uint64_t val, unsigned size, bool memory)
 {
     send_bar_access_msg(dev->proxy_link, mr, true, addr, &val, size, memory);
+}
+
+uint64_t proxy_default_bar_read(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
+                                unsigned size, bool memory)
+{
+    uint64_t val;
+
+    send_bar_access_msg(dev->proxy_link, mr, false, addr, &val, size, memory);
+
+    return val;
 }

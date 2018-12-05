@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "qemu/module.h"
 #include "io/proxy-link.h"
@@ -208,6 +209,31 @@ int proxy_proc_recv(ProxyLinkState *s, ProcMsg *msg)
     qemu_mutex_unlock(&s->lock);
 
     return rc;
+}
+
+uint64_t wait_for_remote(int efd)
+{
+    uint64_t val;
+
+    if (read(efd, &val, sizeof(val)) == -1) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Error wait_for_remote: %s\n",
+                      strerror(errno));
+        return ULLONG_MAX;
+    }
+
+    val = (val == ULLONG_MAX) ? val : (val - 1);
+
+    return val;
+}
+
+void notify_proxy(int efd, uint64_t val)
+{
+    val = (val == ULLONG_MAX) ? val : (val + 1);
+
+    if (write(efd, &val, sizeof(val)) == -1) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Error notify_proxy: %s\n",
+                      strerror(errno));
+    }
 }
 
 static gboolean proxy_link_handler_prepare(GSource *gsrc, gint *timeout)

@@ -70,6 +70,10 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    DEV_OPTS,
+    DRIVE_OPTS,
+    DEVICE_ADD,
+    DEVICE_DEL,
     MAX,
 } proc_cmd_t;
 

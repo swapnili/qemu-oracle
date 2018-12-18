@@ -52,6 +52,7 @@
 #include "util/event_notifier-posix.c"
 #include "hw/i386/pc.h"
 #include "hw/boards.h"
+#include "include/qemu/log.h"
 
 /*
  * TODO: kvm_vm_ioctl is only available for per-target objects (NEED_CPU_H).
@@ -61,6 +62,40 @@
 int kvm_vm_ioctl(KVMState *s, int type, ...);
 
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
+static void setup_irqfd(PCIProxyDev *dev);
+
+static void proxy_ready(PCIDevice *dev)
+{
+    PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
+
+    setup_irqfd(pdev);
+}
+
+static void set_remote_opts(PCIDevice *dev, QDict *qdict, unsigned int cmd)
+{
+    QString *qstr;
+    ProcMsg msg;
+    const char *str;
+    PCIProxyDev *pdev;
+
+    pdev = PCI_PROXY_DEV(dev);
+
+    qstr = qobject_to_json(QOBJECT(qdict));
+    str = qstring_get_str(qstr);
+    qemu_log_mask(LOG_REMOTE_DEBUG, "remote qdict in proxy: %s.\n", str);
+
+    memset(&msg, 0, sizeof(ProcMsg));
+
+    msg.data2 = (uint8_t *)str;
+    msg.cmd = cmd;
+    msg.bytestream = 1;
+    msg.size = qstring_get_length(qstr) + 1;
+    msg.num_fds = 0;
+
+    proxy_proc_send(pdev->proxy_link, &msg);
+
+    return;
+}
 
 static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
                           unsigned int op)
@@ -76,7 +111,8 @@ static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
 
     msg.data2 = (uint8_t *)malloc(sizeof(conf_data));
     if (!msg.data2) {
-        printf("Failed to allocate memory for msg.data2.");
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Failed to allocate memory"
+                      " for msg.data2.\n");
         return -ENOMEM;
     }
 
@@ -268,8 +304,9 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     dev->sync = REMOTE_MEM_SYNC(object_new(TYPE_MEMORY_LISTENER));
 
     configure_memory_sync(dev->sync, dev->proxy_link);
+    dev->set_remote_opts = set_remote_opts;
+    dev->proxy_ready = proxy_ready;
 
-    setup_irqfd(dev);
 }
 
 static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,

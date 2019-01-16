@@ -725,6 +725,22 @@ STEXI
 Add device.
 ETEXI
 
+#if defined(CONFIG_MPQEMU)
+    {
+        .name       = "remote_proc_list",
+        .args_type  = "",
+        .params     = "",
+        .help       = "list remote devices and their linux process IDs",
+        .cmd        = hmp_remote_proc_list,
+    },
+
+STEXI
+@item remote_proc_list
+@findex remote_proc_list
+List remote devices and their linux process IDs.
+ETEXI
+#endif
+
     {
         .name       = "device_del",
         .args_type  = "id:s",

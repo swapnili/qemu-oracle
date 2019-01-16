@@ -647,6 +647,23 @@
            '*dirty-bitmaps': ['BlockDirtyInfo'] } }
 
 ##
+# @RemoteProc:
+#
+# Remote process information.
+#
+# @id: Device ID
+#
+# @pid: Linux Process ID
+#
+# @proc: Process name
+#
+# Since:  3.0.93
+##
+{ 'struct': 'RemoteProc',
+  'data': {'id': 'str', 'pid': 'int32', 'proc': 'str' },
+  'if': 'defined(CONFIG_MPQEMU)' }
+
+##
 # @BlockMeasureInfo:
 #
 # Image file size calculation information.  This structure describes the size
@@ -768,6 +785,18 @@
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
+##
+# @query-remote:
+#
+# Get a list of all the remote processes spawned by QEMU.
+#
+# Returns: a list of @RemoteProc describing each remote process.
+#
+# Since: 3.0.93
+#
+##
+{ 'command': 'query-remote', 'returns': ['RemoteProc'],
+  'if': 'defined(CONFIG_MPQEMU)' }
 
 ##
 # @BlockDeviceTimedStats:

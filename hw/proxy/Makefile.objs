@@ -1,2 +1,3 @@
 common-obj-$(CONFIG_MPQEMU) += qemu-proxy.o
 common-obj-$(CONFIG_MPQEMU) += proxy-lsi53c895a.o
+common-obj-$(CONFIG_MPQEMU) += monitor.o

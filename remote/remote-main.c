@@ -53,6 +53,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "monitor/qdev.h"
+#include "qapi/qmp/qdict.h"
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
@@ -181,6 +182,47 @@ fail:
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_device_del_msg(ProcMsg *msg)
+{
+    Error *local_err = NULL;
+    DeviceState *dev = NULL;
+    const char *json = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QObject *qobj = NULL;
+    QDict *qdict = NULL;
+    const char *id;
+
+    qobj = qobject_from_json(json, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    qdict = qobject_to(QDict, qobj);
+    assert(qdict);
+
+    id = qdict_get_try_str(qdict, "id");
+    assert(id);
+
+    dev = find_device_state(id, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    if (dev) {
+        qdev_unplug(dev, &local_err);
+    }
+
+fail:
+    if (local_err) {
+        error_report_err(local_err);
+        /* TODO: communicate the exact error message to proxy */
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static void process_msg(GIOCondition cond)
 {
     ProcMsg *msg = NULL;
@@ -234,6 +276,9 @@ static void process_msg(GIOCondition cond)
         break;
     case DEVICE_ADD:
         process_device_add_msg(msg);
+        break;
+    case DEVICE_DEL:
+        process_device_del_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command");

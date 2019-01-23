@@ -61,6 +61,7 @@ typedef struct ProxyLinkState ProxyLinkState;
  * SET_IRQFD        Sets the IRQFD to be used to raise interrupts directly
  *                  from remote device
  * DEVICE_ADD       QMP/HMP command to hotplug device
+ * DEVICE_DEL       QMP/HMP command to hot-unplug device
  *
  */
 typedef enum {
@@ -72,6 +73,7 @@ typedef enum {
     BAR_READ,
     SET_IRQFD,
     DEVICE_ADD,
+    DEVICE_DEL,
     MAX,
 } proc_cmd_t;
 

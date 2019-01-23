@@ -741,6 +741,20 @@ Add device to remote proc.
 ETEXI
 
     {
+        .name       = "rdevice_del",
+        .args_type  = "rdev_id:s,id:s",
+        .params     = "rdev_id id",
+        .help       = "remove device from remote proc",
+        .cmd        = hmp_rdevice_del,
+    },
+
+STEXI
+@item rdevice_del @var{rdev_id} @var{id}
+@findex rdevice_del
+Remove device from remote proc.
+ETEXI
+
+    {
         .name       = "remote_proc_list",
         .args_type  = "",
         .params     = "",

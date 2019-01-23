@@ -12,6 +12,7 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp);
 
 #ifdef CONFIG_MPQEMU
 void qmp_rdevice_add(QDict *qdict, QObject **ret_data, Error **errp);
+void qmp_rdevice_del(QDict *qdict, QObject **ret_data, Error **errp);
 #endif
 
 int qdev_device_help(QemuOpts *opts);

@@ -151,5 +151,6 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict);
 void hmp_info_sev(Monitor *mon, const QDict *qdict);
 void hmp_remote_proc_list(Monitor *mon, const QDict *qdict);
 void hmp_rdevice_add(Monitor *mon, const QDict *qdict);
+void hmp_rdevice_del(Monitor *mon, const QDict *qdict);
 
 #endif

@@ -1158,6 +1158,8 @@ static void monitor_init_qmp_commands(void)
 #ifdef CONFIG_MPQEMU
     qmp_register_command(&qmp_commands, "rdevice_add", qmp_rdevice_add,
                          QCO_NO_OPTIONS);
+    qmp_register_command(&qmp_commands, "rdevice_del", qmp_rdevice_del,
+                         QCO_NO_OPTIONS);
 #endif
 
     QTAILQ_INIT(&qmp_cap_negotiation_commands);

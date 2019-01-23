@@ -158,6 +158,8 @@ static void rdevice_add_del(QDict *qdict, proc_cmd_t cmd, Error **errp)
     if (cmd == DEVICE_ADD) {
         (void)g_hash_table_insert(pcms->remote_devs, (gpointer)g_strdup(id),
                                   (gpointer)pdev);
+    } else {
+        (void)g_hash_table_remove(pcms->remote_devs, (gpointer)id);
     }
 }
 
@@ -179,3 +181,23 @@ void hmp_rdevice_add(Monitor *mon, const QDict *qdict)
         error_free(err);
     }
 }
+
+void qmp_rdevice_del(QDict *qdict, QObject **ret_data, Error **errp)
+{
+    rdevice_add_del(qdict, DEVICE_DEL, errp);
+}
+
+void hmp_rdevice_del(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    /* TODO: Is it OK to modify the QDict argument from HMP? */
+    rdevice_add_del((QDict *)qdict, DEVICE_DEL, &err);
+
+    if (err) {
+        monitor_printf(mon, "rdevice_del error: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+    }
+}
+

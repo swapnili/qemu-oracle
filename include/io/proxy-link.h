@@ -60,6 +60,7 @@ typedef struct ProxyLinkState ProxyLinkState;
  * BAR_READ         Reads from PCI BAR region
  * SET_IRQFD        Sets the IRQFD to be used to raise interrupts directly
  *                  from remote device
+ * DEVICE_ADD       QMP/HMP command to hotplug device
  *
  */
 typedef enum {
@@ -70,6 +71,7 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    DEVICE_ADD,
     MAX,
 } proc_cmd_t;
 

@@ -10,6 +10,10 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict);
 void hmp_info_qom_tree(Monitor *mon, const QDict *dict);
 void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp);
 
+#ifdef CONFIG_MPQEMU
+void qmp_rdevice_add(QDict *qdict, QObject **ret_data, Error **errp);
+#endif
+
 int qdev_device_help(QemuOpts *opts);
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp);
 void qdev_set_id(DeviceState *dev, const char *id);

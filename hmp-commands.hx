@@ -727,6 +727,20 @@ ETEXI
 
 #if defined(CONFIG_MPQEMU)
     {
+        .name       = "rdevice_add",
+        .args_type  = "rdev_id:s,driver:s,id:s,drive:s,bus:s",
+        .params     = "rdev_id driver id drive bus",
+        .help       = "add device to remote proc, like -rdevice on the command line",
+        .cmd        = hmp_rdevice_add,
+    },
+
+STEXI
+@item rdevice_add @var{config}
+@findex rdevice_add
+Add device to remote proc.
+ETEXI
+
+    {
         .name       = "remote_proc_list",
         .args_type  = "",
         .params     = "",

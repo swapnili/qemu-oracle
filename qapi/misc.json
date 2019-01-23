@@ -1663,6 +1663,28 @@
   'gen': false } # so we can get the additional arguments
 
 ##
+# @rdevice_add:
+#
+# @rdev_id: ID of the remote device root
+#
+# @driver: the name of the new device's driver
+#
+# @bus: the device's parent bus (device tree path)
+#
+# @id: the device's ID, must be unique
+#
+# Additional arguments depend on the type.
+#
+# Add a device.
+#
+# Since: 3.0
+##
+{ 'command': 'rdevice_add',
+  'data': {'rdev_id': 'str', 'driver': 'str', '*bus': 'str', '*id': 'str'},
+  'if': 'defined(CONFIG_MPQEMU)',
+  'gen': false } # so we can get the additional arguments
+
+##
 # @device_del:
 #
 # Remove a device from a guest

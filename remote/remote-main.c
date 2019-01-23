@@ -48,6 +48,11 @@
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"
 #include "remote/iohub.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qobject.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "monitor/qdev.h"
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
@@ -138,6 +143,44 @@ fail:
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_device_add_msg(ProcMsg *msg)
+{
+    Error *local_err = NULL;
+    const char *json = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QObject *qobj = NULL;
+    QDict *qdict = NULL;
+    QemuOpts *opts = NULL;
+
+    qobj = qobject_from_json(json, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    qdict = qobject_to(QDict, qobj);
+    assert(qdict);
+
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    (void)qdev_device_add(opts, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+fail:
+    if (local_err) {
+        error_report_err(local_err);
+        /* TODO: communicate the exact error message to proxy */
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static void process_msg(GIOCondition cond)
 {
     ProcMsg *msg = NULL;
@@ -189,6 +232,9 @@ static void process_msg(GIOCondition cond)
     case SET_IRQFD:
         process_set_irqfd_msg(remote_pci_dev, msg);
         break;
+    case DEVICE_ADD:
+        process_device_add_msg(msg);
+        break;
     default:
         error_setg(&err, "Unknown command");
         goto finalize_loop;
@@ -224,6 +270,8 @@ int main(int argc, char *argv[])
     module_call_init(MODULE_INIT_QOM);
 
     bdrv_init_with_whitelist();
+
+    qemu_add_opts(&qemu_device_opts);
 
     if (qemu_init_main_loop(&err)) {
         error_report_err(err);

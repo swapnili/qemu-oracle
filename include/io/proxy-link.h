@@ -74,6 +74,7 @@ typedef enum {
     DRIVE_OPTS,
     DEVICE_ADD,
     DEVICE_DEL,
+    PROXY_PING,
     MAX,
 } proc_cmd_t;
 

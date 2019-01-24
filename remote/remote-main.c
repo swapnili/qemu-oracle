@@ -420,6 +420,7 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
     ProcMsg *msg = NULL;
     Error *err = NULL;
     remote_pci_devs *r = NULL;
+    int wait;
 
     if ((cond & G_IO_HUP) || (cond & G_IO_ERR)) {
         error_setg(&err, "socket closed, cond is %d", cond);
@@ -512,6 +513,11 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         break;
     case DEVICE_DEL:
         process_device_del_msg(msg);
+        break;
+    case PROXY_PING:
+        wait = msg->fds[0];
+        notify_proxy(wait, (uint32_t)getpid());
+        PUT_REMOTE_WAIT(wait);
         break;
     default:
         error_setg(&err, "Unknown command");

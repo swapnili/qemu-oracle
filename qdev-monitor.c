@@ -964,6 +964,15 @@ QemuOptsList qemu_global_opts = {
     },
 };
 
+QemuOptsList qemu_rdevice_opts = {
+    .name = "rdevice",
+    .implied_opt_name = "driver",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_rdevice_opts.head),
+    .desc = {
+        { /* end of list */ }
+    },
+};
+
 int qemu_global_option(const char *str)
 {
     char driver[64], property[64];

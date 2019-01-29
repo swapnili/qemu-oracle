@@ -535,6 +535,17 @@ Like the KCS interface, but defines a BT interface.  The default port is
 
 ETEXI
 
+DEF("rdevice", HAS_ARG, QEMU_OPTION_rdevice,
+    "-rdevice driver[,prop[=value][,...]]\n"
+    "                add device (based on driver)\n"
+    "                prop=value,... sets driver properties\n"
+    "                use '-device help' to print all possible drivers\n"
+    "                use '-device driver,help' to print all possible properties\n",
+    QEMU_ARCH_ALL)
+STEXI
+Remote device options.
+ETEXI
+
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2][,debug-threads=on|off]\n"
     "                set the name of the guest\n"
@@ -785,6 +796,21 @@ Please refer to the QAPI documentation of the @code{blockdev-add} QMP command.
 @end table
 
 ETEXI
+
+DEF("rdrive", HAS_ARG, QEMU_OPTION_rdrive,
+    "-rdrive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
+    "       [,cache=writethrough|writeback|none|directsync|unsafe][,format=f]\n"
+    "       [,snapshot=on|off][,rerror=ignore|stop|report]\n"
+    "       [,werror=ignore|stop|report|enospc][,id=name][,aio=threads|native]\n"
+    "       [,readonly=on|off][,copy-on-read=on|off]\n"
+    "       [,discard=ignore|unmap][,detect-zeroes=on|off|unmap]\n"
+    "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]]\n"
+    "       [[,iops=i]|[[,iops_rd=r][,iops_wr=w]]]\n"
+    "       [[,bps_max=bm]|[[,bps_rd_max=rm][,bps_wr_max=wm]]]\n"
+    "       [[,iops_max=im]|[[,iops_rd_max=irm][,iops_wr_max=iwm]]]\n"
+    "       [[,iops_size=is]]\n"
+    "       [[,group=g]]\n"
+    "                use 'file' as a drive image\n", QEMU_ARCH_ALL)
 
 DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"

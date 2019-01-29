@@ -4580,3 +4580,15 @@ QemuOptsList qemu_drive_opts = {
         { /* end of list */ }
     },
 };
+
+QemuOptsList qemu_rdrive_opts = {
+    .name = "rdrive",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_rdrive_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};

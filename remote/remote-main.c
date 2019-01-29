@@ -63,6 +63,7 @@
 #include "block/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
@@ -437,6 +438,7 @@ int main(int argc, char *argv[])
 {
     Error *err = NULL;
     QemuThread main_loop_thread;
+    int fd = -1;
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -461,7 +463,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    proxy_link_set_sock(proxy_link, STDIN_FILENO);
+    fd = qemu_parse_fd(argv[1]);
+    if (fd == -1) {
+        printf("Failed to parse fd for remote process.\n");
+        return -EINVAL;
+    }
+
+    proxy_link_set_sock(proxy_link, fd);
     proxy_link_set_callback(proxy_link, process_msg);
 
     qemu_thread_create(&main_loop_thread, "remote-main-loop", remote_main_loop,

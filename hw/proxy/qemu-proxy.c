@@ -201,7 +201,7 @@ static void setup_irqfd(PCIProxyDev *dev)
 
 static void init_emulation_process(PCIProxyDev *pdev, char *command, Error **errp)
 {
-    char *args[2];
+    char *args[3];
     pid_t rpid;
     int fd[2];
 
@@ -221,16 +221,12 @@ static void init_emulation_process(PCIProxyDev *pdev, char *command, Error **err
     }
 
     if (rpid == 0) {
-        if (dup2(fd[1], STDIN_FILENO) != STDIN_FILENO) {
-            perror("Failed to acquire socket.");
-            exit(1);
-        }
-
         close(fd[0]);
-        close(fd[1]);
 
         args[0] = g_strdup(command);
-        args[1] = NULL;
+        args[1] = g_strdup_printf("%d", fd[1]);
+        args[2] = NULL;
+
         execvp(args[0], (char *const *)args);
         exit(1);
     }

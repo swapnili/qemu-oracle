@@ -33,6 +33,16 @@
 #include "qemu/option.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
+#include "hw/proxy/qemu-proxy.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
+#include "sysemu/sysemu.h"
+#include "hw/proxy/proxy-lsi53c895a.h"
+#include "include/qemu/cutils.h"
+#include "include/qemu/log.h"
+#include "qapi/qmp/qlist.h"
+#include "hw/proxy/qemu-proxy.h"
+#include "io/proxy-link.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -45,6 +55,8 @@ typedef struct QDevAlias
     uint32_t arch_mask;
 } QDevAlias;
 
+proxy_dev_list_t proxy_dev_list;
+QemuMutex proxy_list_lock;
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
     { "e1000", "e1000-82540em" },
@@ -568,6 +580,153 @@ void qdev_set_id(DeviceState *dev, const char *id)
         g_free(name);
     }
 }
+
+#if defined(CONFIG_MPQEMU)
+PCIProxyDev *get_proxy_object(const char *rid);
+PCIProxyDev *get_proxy_object(const char *rid)
+{
+    PCIProxyDev *entry;
+
+    qemu_mutex_lock(&proxy_list_lock);
+    QLIST_FOREACH(entry, &proxy_dev_list.devices, next) {
+        if (strncmp(entry->rid, rid, strlen(entry->rid)) == 0) {
+            qemu_mutex_unlock(&proxy_list_lock);
+            return entry;
+        }
+    }
+    qemu_mutex_unlock(&proxy_list_lock);
+    return NULL;
+
+}
+
+#define MAX_RID_LENGTH 10
+void qdev_proxy_fire(void)
+{
+    PCIProxyDev *entry;
+
+    QLIST_FOREACH(entry, &proxy_dev_list.devices, next) {
+        if (entry->proxy_ready) {
+            entry->proxy_ready(PCI_DEVICE(entry));
+        }
+    }
+}
+
+DeviceState *qdev_proxy_add(const char *rid, const char *id, Error **errp)
+{
+    DeviceState *ds;
+    PCIProxyDev *pdev;
+    QemuOpts *proxy_opts;
+    const char *proxy_type;
+    Error *local_err = NULL;
+    QDict *qdict;
+    const char *str;
+
+    pdev = get_proxy_object(rid);
+    if (pdev) {
+        return DEVICE(pdev);
+    }
+
+    if (strlen(rid) > MAX_RID_LENGTH) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "rid is too long.\n");
+        error_setg(errp, "rid %s is too long", rid);
+        return NULL;
+    }
+
+    proxy_opts = qemu_opts_create(&qemu_device_opts, NULL, 0,
+                                  errp);
+
+    /* TODO: remove hardcoded type and add approptiate type identification. */
+    proxy_type = TYPE_PROXY_LSI53C895A;
+    if (!proxy_type) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Driver is not supported in"
+                      " multi-process qemu.\n");
+        error_setg(errp, "Driver is not supported in multi-process qemu.");
+        return NULL;
+    }
+
+    qemu_opts_set_id(proxy_opts, (char *)rid);
+    qemu_opt_set(proxy_opts, "driver", proxy_type, &local_err);
+
+    qdict = qemu_opts_to_qdict(proxy_opts, NULL);
+    str = qstring_get_str(qobject_to_json(QOBJECT(qdict)));
+
+    ds = qdev_device_add(proxy_opts, &local_err);
+    if (!ds) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Could not create proxy device"
+                      " with opts %s.\n", str);
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+    qdev_set_id(ds, qemu_opts_id(proxy_opts));
+
+    pdev = PCI_PROXY_DEV(ds);
+    if (!pdev) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "qdev_device_add failed.\n");
+        qdev_unplug(ds, errp);
+        return NULL;
+    }
+    pdev->rid = g_strdup(rid);
+
+    qemu_mutex_lock(&proxy_list_lock);
+    QLIST_INSERT_HEAD(&proxy_dev_list.devices, pdev, next);
+    qemu_mutex_unlock(&proxy_list_lock);
+
+    return ds;
+}
+
+DeviceState *qdev_remote_add(QemuOpts *opts, bool device, Error **errp)
+{
+    PCIProxyDev *pdev = NULL;
+    DeviceState *dev;
+    const char *rid;
+    QDict *qdict_new;
+
+    if (!proxy_list_lock.initialized) {
+        QLIST_INIT(&proxy_dev_list.devices);
+        qemu_mutex_init(&proxy_list_lock);
+    }
+
+    rid = qemu_opt_get(opts, "rid");
+    if (!rid) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "rdevice option needs rid"
+                      " specified.\n");
+        error_setg(errp, "rdevice option needs rid specified.");
+        return NULL;
+    }
+
+    dev = qdev_proxy_add(rid, qemu_opt_get(opts, "id"), errp);
+    if (!dev) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Failed to add proxy for %s\n",
+                      device ? "device" : "driver");
+        error_setg(errp, "qdev_proxy_add error.");
+        return NULL;
+    }
+
+    qdict_new = qemu_opts_to_qdict(opts, NULL);
+
+    if (!qdict_new) {
+        printf("Could not parse rdevice options.");
+        error_setg(errp, "Could not parse rdevice options.");
+        return NULL;
+    }
+
+    pdev = PCI_PROXY_DEV(dev);
+    if (!pdev->set_remote_opts) {
+        printf("will not set remote opts\n");
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Device/driver opts are not"
+                      " specified, probably no multi-process support"
+                      " rid=%s\n", rid);
+        /* TODO: destroy proxy? */
+        error_setg(errp, "set_remote_opts not set.");
+        return NULL;
+    } else {
+        pdev->set_remote_opts(PCI_DEVICE(pdev), qdict_new,
+                              device ? DEV_OPTS : DRIVE_OPTS);
+    }
+
+    return dev;
+}
+#endif /*defined(CONFIG_MPQEMU)*/
 
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {

@@ -67,6 +67,7 @@
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
+bool create_done;
 
 static void process_config_write(ProcMsg *msg)
 {
@@ -369,21 +370,31 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
     case INIT:
         break;
     case CONF_WRITE:
-        process_config_write(msg);
+        if (create_done) {
+            process_config_write(msg);
+        }
+
         break;
     case CONF_READ:
-        process_config_read(msg);
+        if (create_done) {
+            process_config_read(msg);
+        }
+
         break;
     case BAR_WRITE:
-        process_bar_write(msg, &err);
-        if (err) {
-            goto finalize_loop;
+        if (create_done) {
+            process_bar_write(msg, &err);
+            if (err) {
+                error_report_err(err);
+            }
         }
         break;
     case BAR_READ:
-        process_bar_read(msg, &err);
-        if (err) {
-            goto finalize_loop;
+        if (create_done) {
+            process_bar_read(msg, &err);
+            if (err) {
+                error_report_err(err);
+            }
         }
         break;
     case SYNC_SYSMEM:
@@ -403,7 +414,7 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         qemu_mutex_lock_iothread();
         qemu_run_machine_init_done_notifiers();
         qemu_mutex_unlock_iothread();
-
+        create_done = true;
         break;
     case DRIVE_OPTS:
         if (setup_drive(msg, &err)) {

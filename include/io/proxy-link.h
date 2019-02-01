@@ -62,6 +62,7 @@ typedef struct ProxyLinkState ProxyLinkState;
  *                  from remote device
  * DEVICE_ADD       QMP/HMP command to hotplug device
  * DEVICE_DEL       QMP/HMP command to hot-unplug device
+ * DRIVE_ADD        HMP command to hotplug drive
  *
  */
 typedef enum {
@@ -76,6 +77,7 @@ typedef enum {
     DRIVE_OPTS,
     DEVICE_ADD,
     DEVICE_DEL,
+    DRIVE_ADD,
     PROXY_PING,
     MAX,
 } proc_cmd_t;

@@ -1401,6 +1401,22 @@ STEXI
 Add drive to PCI storage controller.
 ETEXI
 
+#if defined(CONFIG_MPQEMU)
+    {
+        .name       = "rdrive_add",
+        .args_type  = "rdev_id:s,id:s,opts:s",
+        .params     = "rdev_id opts",
+        .help       = "add drive to remote PCI storage controller",
+        .cmd        = hmp_rdrive_add,
+    },
+
+STEXI
+@item rdrive_add
+@findex rdrive_add
+Add drive to remote PCI storage controller.
+ETEXI
+#endif
+
     {
         .name       = "pcie_aer_inject_error",
         .args_type  = "advisory_non_fatal:-a,correctable:-c,"

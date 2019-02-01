@@ -234,6 +234,29 @@ fail:
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_drive_add_msg(ProcMsg *msg)
+{
+    Error *local_err = NULL;
+    const char *optstr = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QemuOpts *opts;
+    MachineClass *mc;
+
+    opts = drive_def(optstr);
+    assert(opts);
+
+    mc = MACHINE_GET_CLASS(current_machine);
+    (void)drive_new(opts, mc->block_default_type, &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static int init_drive(QDict *rqdict, Error **errp)
 {
     QemuOpts *opts;
@@ -419,6 +442,9 @@ static void process_msg(GIOCondition cond)
     case DEVICE_DEL:
         process_device_del_msg(msg);
         break;
+    case DRIVE_ADD:
+        process_drive_add_msg(msg);
+        break;
     case PROXY_PING:
         wait = msg->fds[0];
         notify_proxy(wait, (uint32_t)getpid());
@@ -462,6 +488,11 @@ int main(int argc, char *argv[])
     bdrv_init_with_whitelist();
 
     qemu_add_opts(&qemu_device_opts);
+    qemu_add_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&qemu_legacy_drive_opts);
+    qemu_add_drive_opts(&qemu_common_drive_opts);
+    qemu_add_drive_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&bdrv_runtime_opts);
 
     if (qemu_init_main_loop(&err)) {
         error_report_err(err);

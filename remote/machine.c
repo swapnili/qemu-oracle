@@ -74,6 +74,8 @@ static void remote_machine_init(Object *obj)
     MemoryRegion *system_memory, *system_io, *pci_memory;
     PCIHostState *pci_host;
     PCIDevice *pci_dev;
+    MachineState *ms;
+    MachineClass *mc;
 
     Error *error_abort = NULL;
 
@@ -116,6 +118,12 @@ static void remote_machine_init(Object *obj)
 
     pci_bus_irqs(pci_host->bus, remote_iohub_set_irq, remote_iohub_map_irq,
                  s->iohub, REMOTE_IOHUB_NB_PIRQS);
+
+    ms = MACHINE(s);
+
+    mc = MACHINE_GET_CLASS(ms);
+
+    mc->block_default_type = IF_IDE;
 }
 
 static const TypeInfo remote_machine = {

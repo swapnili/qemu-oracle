@@ -138,6 +138,7 @@ extern unsigned int nb_prom_envs;
 
 /* generic hotplug */
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
+void hmp_rdrive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);

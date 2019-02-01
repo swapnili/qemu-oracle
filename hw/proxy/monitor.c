@@ -42,6 +42,7 @@
 #include "qapi/error.h"
 #include "io/proxy-link.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 
 /*
  * TODO: Is there a callback where the allocated memory for QMP could be free'd
@@ -244,5 +245,41 @@ void hmp_rdrive_add(Monitor *mon, const QDict *qdict)
                               (gpointer)pdev);
 
     g_free(data);
+}
+
+void hmp_rdrive_del(Monitor *mon, const QDict *qdict)
+{
+    PCMachineState *pcms = PC_MACHINE(current_machine);
+    Error *local_err = NULL;
+    ProcMsg msg = {0};
+    PCIProxyDev *pdev = NULL;
+    const char *id;
+    int wait;
+
+    pdev = get_proxy_device((QDict *)qdict, &local_err);
+    if (local_err) {
+        monitor_printf(mon, "rdrive_del error: %s\n",
+                       error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    id = qdict_get_str(qdict, "id");
+
+    wait = GET_REMOTE_WAIT;
+
+    msg.cmd = DRIVE_DEL;
+    msg.bytestream = 1;
+    msg.size = strlen(id);
+    msg.data2 = (uint8_t *)id;
+    msg.num_fds = 1;
+    msg.fds[0] = wait;
+
+    proxy_proc_send(pdev->proxy_link, &msg);
+    (void)wait_for_remote(wait);
+    PUT_REMOTE_WAIT(wait);
+
+    /* TODO: Only on success */
+    (void)g_hash_table_remove(pcms->remote_devs, (gpointer)id);
 }
 

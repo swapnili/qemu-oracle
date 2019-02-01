@@ -1415,6 +1415,20 @@ STEXI
 @findex rdrive_add
 Add drive to remote PCI storage controller.
 ETEXI
+
+    {
+        .name       = "rdrive_del",
+        .args_type  = "rdev_id:s,id:s",
+        .params     = "rdev_id id",
+        .help       = "remove drive from remote PCI storage controller",
+        .cmd        = hmp_rdrive_del,
+    },
+
+STEXI
+@item rdrive_del
+@findex rdrive_del
+Remove drive from remote PCI storage controller
+ETEXI
 #endif
 
     {

@@ -257,6 +257,21 @@ static void process_drive_add_msg(ProcMsg *msg)
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_drive_del_msg(ProcMsg *msg)
+{
+    const char *idstr = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QDict *qdict = qdict_new();
+
+    qdict_put_str(qdict, "id", idstr);
+
+    hmp_drive_del(NULL, qdict);
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static int init_drive(QDict *rqdict, Error **errp)
 {
     QemuOpts *opts;
@@ -444,6 +459,9 @@ static void process_msg(GIOCondition cond)
         break;
     case DRIVE_ADD:
         process_drive_add_msg(msg);
+        break;
+    case DRIVE_DEL:
+        process_drive_del_msg(msg);
         break;
     case PROXY_PING:
         wait = msg->fds[0];

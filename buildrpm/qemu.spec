@@ -1674,7 +1674,7 @@ run_configure \
     --target-list="$dynamic_targets" \
     --enable-pie \
     --enable-modules \
-    --tls-priority=@QEMU,SYSTEM \
+    --tls-priority=NORMAL \
     %{spiceflag} \
     --with-sdlabi="2.0" \
     --with-gtkabi="3.0"

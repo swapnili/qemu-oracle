@@ -1429,6 +1429,20 @@ STEXI
 @findex rdrive_del
 Remove drive from remote PCI storage controller
 ETEXI
+
+    {
+        .name       = "rblock_resize",
+        .args_type  = "rdev_id:s,device:s,size:o",
+        .params     = "rdev_id device size",
+        .help       = "resize block device on the remote device",
+        .cmd        = hmp_rblock_resize,
+    },
+
+STEXI
+@item rblock_resize
+@findex rblock_resize
+Resize block device on the remote device
+ETEXI
 #endif
 
     {

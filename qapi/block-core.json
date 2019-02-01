@@ -1260,6 +1260,31 @@
             'size': 'int' } }
 
 ##
+# @rblock_resize:
+#
+# Resize a block image while a guest is running, on a remote device.
+#
+# @device: the name of the device to get the image resized
+#
+# @size:  new image size in bytes
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since: 3.0.93
+#
+# Example:
+#
+# -> { "execute": "rblock_resize",
+#      "arguments": { "device": "scratch", "size": 1073741824 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'rblock_resize',
+  'data': { 'rdev_id': 'str', 'device': 'str', 'size': 'int' },
+  'if': 'defined(CONFIG_MPQEMU)' }
+
+##
 # @NewImageMode:
 #
 # An enumeration that tells QEMU how to set the backing file path in

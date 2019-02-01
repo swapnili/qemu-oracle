@@ -283,3 +283,56 @@ void hmp_rdrive_del(Monitor *mon, const QDict *qdict)
     (void)g_hash_table_remove(pcms->remote_devs, (gpointer)id);
 }
 
+void qmp_rblock_resize(const char *rdev_id, const char *device, int64_t size,
+                       Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(current_machine);
+    PCIProxyDev *pdev = NULL;
+    ProcMsg msg = {0};
+    QString *json;
+    QDict *qdict;
+    int wait;
+
+    pdev = (PCIProxyDev *)g_hash_table_lookup(pcms->remote_devs, rdev_id);
+    if (!pdev) {
+        error_setg(errp, "No remote device named %s", device);
+        return;
+    }
+
+    qdict = qdict_new();
+    qdict_put_str(qdict, "device", device);
+    qdict_put_int(qdict, "size", size);
+
+    json = qobject_to_json(QOBJECT(qdict));
+
+    wait = GET_REMOTE_WAIT;
+
+    msg.cmd = BLOCK_RESIZE;
+    msg.bytestream = 1;
+    msg.size = strlen(qstring_get_str(json));
+    msg.data2 = (uint8_t *)qstring_get_str(json);
+    msg.num_fds = 1;
+    msg.fds[0] = wait;
+
+    proxy_proc_send(pdev->proxy_link, &msg);
+    (void)wait_for_remote(wait);
+    PUT_REMOTE_WAIT(wait);
+}
+
+void hmp_rblock_resize(Monitor *mon, const QDict *qdict)
+{
+    Error *local_err = NULL;
+    const char *rdev_id, *device;
+    int64_t size;
+
+    rdev_id = qdict_get_str(qdict, "rdev_id");
+    device = qdict_get_str(qdict, "device");
+    size = qdict_get_int(qdict, "size");
+
+    qmp_rblock_resize(rdev_id, device, size, &local_err);
+    if (local_err) {
+        monitor_printf(mon, "rblock_resize error: %s\n",
+                       error_get_pretty(local_err));
+        error_free(local_err);
+    }
+}

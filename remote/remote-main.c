@@ -64,6 +64,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qemu/log.h"
 #include "qemu/cutils.h"
+#include "qapi/qapi-commands-block-core.h"
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
@@ -272,6 +273,38 @@ static void process_drive_del_msg(ProcMsg *msg)
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_block_resize_msg(ProcMsg *msg)
+{
+    const char *json = (const char *)msg->data2;
+    Error *local_err = NULL;
+    int wait = msg->fds[0];
+    const char *device;
+    int64_t size;
+    QObject *qobj = NULL;
+    QDict *qdict = NULL;
+
+    qobj = qobject_from_json(json, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
+
+    qdict = qobject_to(QDict, qobj);
+    assert(qdict);
+
+    device = qdict_get_str(qdict, "device");
+    size = qdict_get_int(qdict, "size");
+
+    qmp_block_resize(true, device, false, NULL, size, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static int init_drive(QDict *rqdict, Error **errp)
 {
     QemuOpts *opts;
@@ -467,6 +500,9 @@ static void process_msg(GIOCondition cond)
         wait = msg->fds[0];
         notify_proxy(wait, (uint32_t)getpid());
         PUT_REMOTE_WAIT(wait);
+        break;
+    case BLOCK_RESIZE:
+        process_block_resize_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command");

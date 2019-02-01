@@ -64,6 +64,7 @@ typedef struct ProxyLinkState ProxyLinkState;
  * DEVICE_DEL       QMP/HMP command to hot-unplug device
  * DRIVE_ADD        HMP command to hotplug drive
  * DRIVE_DEL        HMP command to hot-unplug drive
+ * BLOCK_RESIZE     QMP/HMP command to resize block backend
  *
  */
 typedef enum {
@@ -81,6 +82,7 @@ typedef enum {
     DRIVE_ADD,
     DRIVE_DEL,
     PROXY_PING,
+    BLOCK_RESIZE,
     MAX,
 } proc_cmd_t;
 

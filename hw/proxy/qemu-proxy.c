@@ -50,6 +50,8 @@
 #include "qemu/event_notifier.h"
 #include "sysemu/kvm.h"
 #include "util/event_notifier-posix.c"
+#include "hw/i386/pc.h"
+#include "hw/boards.h"
 
 /*
  * TODO: kvm_vm_ioctl is only available for per-target objects (NEED_CPU_H).
@@ -234,6 +236,7 @@ static void init_emulation_process(PCIProxyDev *pdev, char *command, Error **err
     }
 
     pdev->proxy_link = proxy_link_create();
+    pdev->remote_pid = rpid;
 
     if (!pdev->proxy_link) {
         error_setg(errp, "Failed to create proxy link");
@@ -252,8 +255,12 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     PCIProxyDev *dev = PCI_PROXY_DEV(device);
     PCIProxyDevClass *k = PCI_PROXY_DEV_GET_CLASS(dev);
     Error *local_err = NULL;
+    PCMachineState *pcms = PC_MACHINE(current_machine);
+    DeviceState *d = DEVICE(dev);
 
     init_emulation_process(dev, k->command, errp);
+
+    (void)g_hash_table_insert(pcms->remote_devs, (gpointer)d->id, (gpointer)dev);
 
     if (k->realize) {
         k->realize(dev, &local_err);

@@ -2643,6 +2643,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->smbus_enabled = true;
     pcms->sata_enabled = true;
     pcms->pit_enabled = true;
+    pcms->remote_devs = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
 static void pc_machine_reset(void)

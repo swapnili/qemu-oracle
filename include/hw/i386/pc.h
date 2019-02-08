@@ -1,6 +1,8 @@
 #ifndef HW_PC_H
 #define HW_PC_H
 
+#include <gmodule.h>
+
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
@@ -39,6 +41,7 @@ struct PCMachineState {
     PCIBus *bus;
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
+    GHashTable *remote_devs;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;

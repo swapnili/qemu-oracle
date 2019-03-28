@@ -1,0 +1,25 @@
+#!/bin/gnuplot
+reset
+set terminal svg dashed size 1024,600 fontfile 'font-svg.css' font 'rfont,13'
+set autoscale keepfix
+set decimal locale
+set format y "%'10.0f"
+set format x "%'10.0f"
+set xlabel "R/W Mix"
+set ylabel "Throughput (MB/s)"
+set yrange [0:137]
+set ytics 0, 17, 137
+set key outside center top horizontal reverse
+set grid
+set style data linespoints
+set border linewidth 1.5
+set style line 1 lc rgb '#F15854' lt 1 lw 3
+set style line 2 lc rgb '#5DA5DA' lt 1 lw 3
+set style fill solid noborder
+set boxwidth 0.9 relative
+set style histogram cluster gap 1
+set style data histogram
+set grid noxtics
+set grid ytics lc rgb '#dddddd' lw 1 lt 0
+set tic scale 0
+plot "throughput-2d-plot-128.dat" u 2:xtic(1) ls 1 notitle

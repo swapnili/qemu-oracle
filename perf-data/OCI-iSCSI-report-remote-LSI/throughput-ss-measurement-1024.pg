@@ -1,0 +1,30 @@
+#!/bin/gnuplot
+reset
+set terminal svg dashed size 1024,450 fontfile 'font-svg.css' font 'rfont,13'
+set autoscale keepfix
+set decimal locale
+set format y "%'10.0f"
+set format x "%'10.0f"
+set xlabel "Round"
+set xrange [0:6]
+set xtics 0, 1, 6
+set ylabel "Throughput (MB/s)"
+set yrange [68:124]
+set ytics 68, 7, 124
+set key outside center top horizontal reverse
+set grid
+set style data linespoints
+set border linewidth 1.5
+set style line 1 lt 1 lc rgb '#F15854' lw 3 pt 5
+set style line 2 lt 1 lc rgb '#555555' lw 3 pt -1
+set style line 3 lt 2 lc rgb '#555555' lw 3 pt -1
+set style line 4 lt 2 lc rgb '#555555' lw 3 pt -1
+set style line 5 lt 4 lc rgb '#555555' lw 3 pt -1
+set grid noxtics
+set grid noytics
+set tic scale 0
+plot "throughput-ss-measurement-1024.dat" every ::1 u 1:2 t "Throughput (MB/s)" ls 1, \
+"" every ::1 u 3:4 t "Average" ls 2, \
+"" every ::1 u 5:6 t "110% Average" ls 3, \
+"" every ::1 u 7:8 t "90% Average" ls 4, \
+"" every ::1 u 9:10 t "Slope" ls 5

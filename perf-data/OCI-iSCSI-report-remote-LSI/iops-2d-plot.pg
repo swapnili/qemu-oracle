@@ -1,0 +1,34 @@
+#!/bin/gnuplot
+reset
+set terminal svg dashed size 1024,600 fontfile 'font-svg.css' font 'rfont,13'
+set autoscale keepfix
+set decimal locale
+set format y "%'10.0f"
+set format x "%'10.0f"
+set xlabel "Block Size KiB"
+set xrange [1:10000]
+set logscale x
+set ylabel "IOPS"
+set yrange [1:100000]
+set logscale y
+set key outside center top horizontal reverse
+set grid
+set style data linespoints
+set border linewidth 1.5
+set style line 1 lc rgb '#F15854' lt 1 lw 3
+set style line 2 lc rgb '#5DA5DA' lt 1 lw 3
+set style line 3 lc rgb '#FAA43A' lt 1 lw 3
+set style line 4 lc rgb '#60BD68' lt 1 lw 3
+set style line 5 lc rgb '#F17CB0' lt 1 lw 3
+set style line 6 lc rgb '#B2912F' lt 1 lw 3
+set style line 7 lc rgb '#DECF3F' lt 1 lw 3
+set grid noxtics
+set grid ytics lc rgb '#dddddd' lw 1 lt 0
+set tic scale 0
+plot "iops-2d-plot.dat" every ::1 u 1:2 t "0/100" ls 1, \
+"" every ::1 u 3:4 t "5/95" ls 2, \
+"" every ::1 u 5:6 t "35/65" ls 3, \
+"" every ::1 u 7:8 t "50/50" ls 4, \
+"" every ::1 u 9:10 t "65/35" ls 5, \
+"" every ::1 u 11:12 t "95/5" ls 6, \
+"" every ::1 u 13:14 t "100/0" ls 7

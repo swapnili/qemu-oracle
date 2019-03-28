@@ -1,0 +1,30 @@
+#!/bin/gnuplot
+reset
+set terminal svg dashed size 1024,600 fontfile 'font-svg.css' font 'rfont,13'
+set autoscale keepfix
+set decimal locale
+set format y "%'10.0f"
+set format x "%'10.0f"
+set xlabel "Round"
+set xrange [1:5]
+set xtics 1, 1, 5
+set ylabel "IOPS"
+set yrange [0:2392]
+set ytics 0, 299, 2392
+set key outside center top horizontal reverse
+set grid
+set style data linespoints
+set border linewidth 1.5
+set style line 1 lc rgb '#F15854' lt 1 lw 3
+set style line 2 lc rgb '#5DA5DA' lt 1 lw 3
+set style line 3 lc rgb '#FAA43A' lt 1 lw 3
+set style line 4 lc rgb '#60BD68' lt 1 lw 3
+set style line 5 lc rgb '#F17CB0' lt 1 lw 3
+set grid noxtics
+set grid ytics lc rgb '#dddddd' lw 1 lt 0
+set tic scale 0
+plot "iops-ss-measurement.dat" every ::1 u 1:2 t "IOPS" ls 1, \
+"" every ::1 u 3:4 t "Average" ls 2, \
+"" every ::1 u 5:6 t "110% Average" ls 3, \
+"" every ::1 u 7:8 t "90% Average" ls 4, \
+"" every ::1 u 9:10 t "Slope" ls 5

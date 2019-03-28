@@ -1,0 +1,6 @@
+Throughput (MB/s) Round	Throughput (MB/s) Throughput (MB/s)	Average Round	Average Throughput (MB/s)	110% Average Round	110% Average Throughput (MB/s)	90% Average Round	90% Average Throughput (MB/s)	Slope Round	Slope Throughput (MB/s)
+1	99.33	1	99	1	109	1	89	1	99.33
+2	98.62	5	99	5	109	5	89	5	99.61
+3	99.35								
+4	99.26								
+5	99.61								

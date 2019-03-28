@@ -1,0 +1,22 @@
+#!/bin/gnuplot
+reset
+set terminal svg dashed size 1024,600 fontfile 'font-svg.css' font 'rfont,13'
+set autoscale keepfix
+set decimal locale
+set format y "%'10.0f"
+set format x "%'10.0f"
+set xlabel "Round"
+set xrange [1:5]
+set xtics 1, 1, 5
+set ylabel "Throughput (MB/s)"
+set yrange [0:110]
+set ytics 0, 13, 110
+set key outside center top horizontal reverse
+set grid
+set style data linespoints
+set border linewidth 1.5
+set style line 1 lc rgb '#F15854' lt 1 lw 3
+set grid noxtics
+set grid ytics lc rgb '#dddddd' lw 1 lt 0
+set tic scale 0
+plot "throughput-ss-convergence-write-1024.dat" every ::1 u 1:2 t "BS=1024k" ls 1

@@ -1612,7 +1612,6 @@ run_configure() {
         --enable-tcg-interpreter \
 %endif
         --enable-trace-backend=$tracebackends \
-	%{?with_parfait:--disable-avx2} \
 	%{?with_parfait:--cc=parfait-gcc} \
 	%{?with_parfait:--cxx=parfait-g++} \
 	%{?with_parfait:--extra-cflags="-B parfait-ld"} \

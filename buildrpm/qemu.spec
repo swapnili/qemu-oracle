@@ -1752,7 +1752,7 @@ _parfait_output=%{?_parfait_output}%{!?_parfait_output:"./parfait_html"}
 _parfait_conf=%{_sourcedir}/parfait-qemu.conf
 
 RC=0
-parfait -j $_parfait_threads -e all -c $_parfait_conf -g $_parfait_output -b $_parfait_server . || RC=$?
+parfait -j $_parfait_threads -c $_parfait_conf -g $_parfait_output -b $_parfait_server . || RC=$?
 
 #
 # Due an open bug in the Parfait tooling (21116133), some QEMU object

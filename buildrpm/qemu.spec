@@ -1767,15 +1767,18 @@ RC=0
 parfait -j $_parfait_threads -c $_parfait_conf -g $_parfait_output $_parfait_upload $_parfait_server $_parfait_srcdir . || RC=$?
 
 #
-# Due an open bug in the Parfait tooling (21116133), some QEMU object
-# files trigger internal parfait tool failures and even a successful
-# comparison against the baseline results in a non-zero exit code value (3)
-# which causes rpmbuild to fail.  We need to be able to distinguish
-# between this and the case where new errors were introduced since the
-# baseline (which result in parfait returning an exit code of 1).
+# Work is ongoing to triage all the issues reported by Parfait on the QEMU
+# codebase but until they are all are either fixed or marked as a
+# False Positive/Will-Not-Fix on the QEMU Parfait server ($_parfait_server),
+# the parfait run will return 1 so we need to check the return value
+# and ignore it if it's 1 or zero (success, in which case this check can be
+# removed).
 #
-if [ $RC == 0 -o $RC == 3 ]; then
-    exit 0
+# For more details on exit codes, see the Parfait documentation:
+# http://parfait.us.oracle.com/latest/ParfaitInfo.html#exit-codes
+#
+if [ ${RC} != 0 -a ${RC} != 1 ]; then
+    exit ${RC}
 fi
 %endif	# with parfait
 

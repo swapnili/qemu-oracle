@@ -264,6 +264,9 @@ Source21: qmp-regdump
 Source22: qemu_regdump.py
 %endif
 
+# Parfait configuration file
+Source23: parfait-qemu.conf
+
 Patch0001: 0001-virtio-Set-PCI-subsystem-vendor-ID-to-Oracle.patch
 
 # documentation deps

@@ -423,6 +423,10 @@ BuildRequires: virglrenderer-devel
 # qemu 2.6: Needed for gtk GL support
 BuildRequires: mesa-libgbm-devel
 %endif
+%if 0%{?with_parfait}
+# qemu 4.0: Needed for nproc(1)
+BuildRequires: coreutils
+%endif
 
 # BuildRequires: glibc-static pcre-static glib2-static zlib-static
 
@@ -1745,8 +1749,8 @@ popd
 %if %{with parfait}
 # URL to use for Parfait baseline
 _parfait_server=%{?_parfait_server}%{!?_parfait_server:http://ca-qa-parfait.us.oracle.com:9990/parfait-server/projects/QEMU/tasks/v%{version}}
-# number of jobs to run in parallel (default 4)
-_parfait_threads=%{?_parfait_threads}%{!?_parfait_threads:4}
+# number of jobs to run in parallel (default: value returned by nproc(1).)
+_parfait_threads=%{?_parfait_threads}%{!?_parfait_threads:$(nproc)}
 # Location to store graphical report (default: ./parfait_html in BUILD dir)
 _parfait_output=%{?_parfait_output}%{!?_parfait_output:"./parfait_html"}
 # Location of Parfait configuration rules file

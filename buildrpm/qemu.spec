@@ -1749,10 +1749,18 @@ _parfait_server=%{?_parfait_server}%{!?_parfait_server:http://ca-qa-parfait.us.o
 _parfait_threads=%{?_parfait_threads}%{!?_parfait_threads:4}
 # Location to store graphical report (default: ./parfait_html in BUILD dir)
 _parfait_output=%{?_parfait_output}%{!?_parfait_output:"./parfait_html"}
+# Location of Parfait configuration rules file
 _parfait_conf=%{_sourcedir}/parfait-qemu.conf
+#
+# Select whether to compare against baseline (default) using '-b'
+# or upload results (-s) if _parfait_upload is set to 1 on command-line
+# (if _parfait_upload is set, the the source base dir is also set via -z)
+#
+_parfait_upload=%{?_parfait_upload:"-s"}%{!?_parfait_upload:"-b"}
+_parfait_srcdir=%{?_parfait_upload:"-z %{_builddir}/%{name}-%{version}/"}
 
 RC=0
-parfait -j $_parfait_threads -c $_parfait_conf -g $_parfait_output -b $_parfait_server . || RC=$?
+parfait -j $_parfait_threads -c $_parfait_conf -g $_parfait_output $_parfait_upload $_parfait_server $_parfait_srcdir . || RC=$?
 
 #
 # Due an open bug in the Parfait tooling (21116133), some QEMU object

@@ -192,6 +192,9 @@
 %global have_qmpregdump 1
 %endif
 
+# Control whether to run Parfait static analysis on code base
+%bcond_with parfait
+
 # All block-* modules should be listed here.
 %global requires_all_block_modules                               \
 Requires: %{name}-block-curl = %{epoch}:%{version}-%{release}    \
@@ -1605,6 +1608,10 @@ run_configure() {
         --enable-tcg-interpreter \
 %endif
         --enable-trace-backend=$tracebackends \
+	%{?with_parfait:--disable-avx2} \
+	%{?with_parfait:--cc=parfait-gcc} \
+	%{?with_parfait:--cxx=parfait-g++} \
+	%{?with_parfait:--extra-cflags="-B parfait-ld"} \
         %{spiceflag} \
         %{iscsiflag} \
         %{smartcardflag} \
@@ -1729,6 +1736,36 @@ popd
 
 # gcc %{_sourcedir}/ksmctl.c -O2 -g -o ksmctl
 
+#
+# Run Parfait static analysis tool against specified baseline
+# if '--with parfait' is passed to rpmbuild.
+#
+# http://parfait.us.oracle.com/
+#
+%if %{with parfait}
+# URL to use for Parfait baseline
+_parfait_server=%{?_parfait_server}%{!?_parfait_server:http://ca-qa-parfait.us.oracle.com:9990/parfait-server/projects/QEMU/tasks/v%{version}}
+# number of jobs to run in parallel (default 4)
+_parfait_threads=%{?_parfait_threads}%{!?_parfait_threads:4}
+# Location to store graphical report (default: ./parfait_html in BUILD dir)
+_parfait_output=%{?_parfait_output}%{!?_parfait_output:"./parfait_html"}
+_parfait_conf=%{_sourcedir}/parfait-qemu.conf
+
+RC=0
+parfait -j $_parfait_threads -e all -c $_parfait_conf -g $_parfait_output -b $_parfait_server . || RC=$?
+
+#
+# Due an open bug in the Parfait tooling (21116133), some QEMU object
+# files trigger internal parfait tool failures and even a successful
+# comparison against the baseline results in a non-zero exit code value (3)
+# which causes rpmbuild to fail.  We need to be able to distinguish
+# between this and the case where new errors were introduced since the
+# baseline (which result in parfait returning an exit code of 1).
+#
+if [ $RC == 0 -o $RC == 3 ]; then
+    exit 0
+fi
+%endif	# with parfait
 
 %install
 

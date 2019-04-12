@@ -399,6 +399,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,\
         .property = "pku",\
         .value    = "off",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "stepping",\
+        .value    = "5",\
     },
 
 #define PC_COMPAT_2_11 \

@@ -39,6 +39,7 @@ typedef struct VHostSCSI {
     int channel;
     int target;
     int lun;
+    bool migratable;
 } VHostSCSI;
 
 #endif

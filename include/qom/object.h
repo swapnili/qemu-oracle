@@ -1195,6 +1195,7 @@ Object *object_get_objects_root(void);
  *
  * Returns: The final component in the object's canonical path.  The canonical
  * path is the path within the composition tree starting from the root.
+ * %NULL if the object doesn't have a parent (and thus a canonical path).
  */
 gchar *object_get_canonical_path_component(Object *obj);
 

@@ -1006,13 +1006,16 @@
 # @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
 #          periodic mode. (Since 2.8)
 #
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    The default value is 99.
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay' ] }
+           'downtime-limit', 'x-checkpoint-delay', 'max-cpu-throttle'] }
 
 ##
 # @migrate-set-parameters:
@@ -1079,6 +1082,9 @@
 #
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    Defaults to 99.
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -1091,7 +1097,8 @@
             '*tls-hostname': 'str',
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
-            '*x-checkpoint-delay': 'int'} }
+            '*x-checkpoint-delay': 'int',
+            '*max-cpu-throttle': 'int'} }
 
 ##
 # @query-migrate-parameters:

@@ -352,7 +352,7 @@ static Property vhost_scsi_properties[] = {
                                                  0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VHostSCSI, parent_obj.conf.cmd_per_lun,
                                                  128),
-    DEFINE_PROP_BOOL("migratable", VHostSCSI, migratable, false),
+    DEFINE_PROP_BOOL("migratable", VHostSCSI, migratable, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

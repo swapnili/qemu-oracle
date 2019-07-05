@@ -28,7 +28,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <glib.h>
+#include <unistd.h>
 #include <pthread.h>
+#include <sys/eventfd.h>
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
@@ -133,11 +135,17 @@ struct ProxyLinkState {
     proxy_link_callback callback;
 };
 
+#define GET_REMOTE_WAIT eventfd(0, 0)
+#define PUT_REMOTE_WAIT(wait) close(wait)
+#define PROXY_LINK_WAIT_DONE 1
+
 ProxyLinkState *proxy_link_create(void);
 void proxy_link_finalize(ProxyLinkState *s);
 
 void proxy_proc_send(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan);
 int proxy_proc_recv(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan);
+uint64_t wait_for_remote(int efd);
+void notify_proxy(int fd, uint64_t val);
 
 void proxy_link_init_channel(ProxyLinkState *s, ProcChannel **chan, int fd);
 void proxy_link_destroy_channel(ProcChannel *chan);

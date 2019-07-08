@@ -687,6 +687,13 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 
 #define CPUID_VENDOR_VIA   "CentaurHauls"
 
+#define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
+                           (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
+                           (env)->cpuid_vendor3 == CPUID_VENDOR_INTEL_3)
+#define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
+                         (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
+                         (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
+
 #define CPUID_MWAIT_IBE     (1U << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1U << 0) /* enumeration supported */
 
@@ -1725,6 +1732,21 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
 static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
 {
     return ((MemTxAttrs) { .secure = (env->hflags & HF_SMM_MASK) != 0 });
+}
+
+static inline bool cpu_has_vmx(CPUX86State *env)
+{
+    return (env->features[FEAT_1_ECX] & CPUID_EXT_VMX);
+}
+
+static inline bool cpu_has_svm(CPUX86State *env)
+{
+    return (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM);
+}
+
+static inline bool cpu_has_nested_virt(CPUX86State *env)
+{
+    return (cpu_has_vmx(env) || cpu_has_svm(env));
 }
 
 /* fpu_helper.c */

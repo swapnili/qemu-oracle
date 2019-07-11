@@ -180,8 +180,8 @@ static void process_bar_write(ProcMsg *msg, Error **errp)
 static void process_bar_read(ProcMsg *msg, Error **errp)
 {
     bar_access_msg_t *bar_access = &msg->data1.bar_access;
+    ProcMsg ret = { 0 };
     AddressSpace *as;
-    int wait = msg->fds[0];
     MemTxResult res;
     uint64_t val = 0;
 
@@ -215,9 +215,10 @@ static void process_bar_read(ProcMsg *msg, Error **errp)
     }
 
 fail:
-    notify_proxy(wait, val);
-
-    PUT_REMOTE_WAIT(wait);
+    ret.cmd = MMIO_RETURN;
+    ret.data1.mmio_ret.val = val;
+    ret.size = sizeof(ret.data1);
+    proxy_proc_send(proxy_link, &ret, proxy_link->mmio);
 }
 
 static void process_device_add_msg(ProcMsg *msg)
@@ -581,10 +582,17 @@ int main(int argc, char *argv[], char **envp)
         printf("Failed to parse fd for remote process.\n");
         return -EINVAL;
     }
-
     proxy_link_init_channel(proxy_link, &proxy_link->com, fd);
 
-    parse_cmdline(argc - 2, argv + 2, NULL);
+    fd = qemu_parse_fd(argv[2]);
+    if (fd == -1) {
+        printf("Failed to parse fd for remote process.\n");
+        return -EINVAL;
+    }
+    proxy_link_init_channel(proxy_link, &proxy_link->mmio, fd);
+
+    parse_cmdline(argc - 3, argv + 3, NULL);
+
     qemu_mutex_init(&remote_ds_lock);
     QLIST_INIT(&pci_devs_head);
 

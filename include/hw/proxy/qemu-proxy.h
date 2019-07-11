@@ -59,6 +59,7 @@ typedef struct PCIProxyDev {
     pid_t remote_pid;
     int rsocket;
     int socket;
+    int mmio_sock;
 
     char *rid;
 

@@ -75,6 +75,7 @@ typedef enum {
     DEVICE_ADD,
     DEVICE_DEL,
     PROXY_PING,
+    MMIO_RETURN,
     MAX,
 } proc_cmd_t;
 
@@ -108,6 +109,10 @@ typedef struct {
 } set_irqfd_msg_t;
 
 typedef struct {
+    uint64_t val;
+} mmio_ret_msg_t;
+
+typedef struct {
     proc_cmd_t cmd;
     int bytestream;
     size_t size;
@@ -118,6 +123,7 @@ typedef struct {
         sync_sysmem_msg_t sync_sysmem;
         bar_access_msg_t bar_access;
         set_irqfd_msg_t set_irqfd;
+        mmio_ret_msg_t mmio_ret;
     } data1;
 
     int fds[REMOTE_MAX_FDS];
@@ -170,6 +176,7 @@ struct ProxyLinkState {
     GMainLoop *loop;
 
     ProcChannel *com;
+    ProcChannel *mmio;
 
     proxy_link_callback callback;
 };

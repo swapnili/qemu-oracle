@@ -50,5 +50,9 @@ int device_init_func(void *opaque, QemuOpts *opts, Error **errp);
 int rdrive_init_func(void *opaque, QemuOpts *opts, Error **errp);
 int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp);
 
+void monitor_parse(const char *optarg, const char *mode, bool pretty);
+int mon_init_func(void *opaque, QemuOpts *opts, Error **errp);
+int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp);
+
 #endif /* VL_H */
 

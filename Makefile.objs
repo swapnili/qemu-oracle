@@ -45,6 +45,8 @@ remote-pci-obj-$(CONFIG_MPQEMU) += iothread.o
 remote-lsi-obj-$(CONFIG_MPQEMU) += hw/
 remote-lsi-obj-$(CONFIG_MPQEMU) += ui/
 
+remote-lsi-obj-$(CONFIG_MPQEMU) += device-hotplug.o
+
 #######################################################################
 # crypto-obj-y is code used by both qemu system emulation and qemu-img
 

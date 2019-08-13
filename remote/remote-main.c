@@ -68,6 +68,7 @@
 
 #include "monitor/monitor.h"
 #include "sysemu/reset.h"
+#include "vl.h"
 
 static ProxyLinkState *proxy_link;
 
@@ -562,6 +563,8 @@ int main(int argc, char *argv[], char **envp)
 
     module_call_init(MODULE_INIT_QOM);
 
+    monitor_init_globals();
+
     bdrv_init_with_whitelist();
 
     if (qemu_init_main_loop(&err)) {
@@ -577,6 +580,8 @@ int main(int argc, char *argv[], char **envp)
 
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_drive_opts);
+    qemu_add_opts(&qemu_chardev_opts);
+    qemu_add_opts(&qemu_mon_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
     qemu_add_drive_opts(&qemu_drive_opts);
@@ -608,6 +613,12 @@ int main(int argc, char *argv[], char **envp)
     QLIST_INIT(&pci_devs_head);
 
     proxy_link_set_callback(proxy_link, process_msg);
+
+    qemu_opts_foreach(qemu_find_opts("chardev"),
+                      chardev_init_func, NULL, &error_fatal);
+
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
 
     start_handler(proxy_link);
 

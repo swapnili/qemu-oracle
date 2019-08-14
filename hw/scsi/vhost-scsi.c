@@ -209,15 +209,13 @@ static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
 }
 
-static int vhost_scsi_pre_save(void *opaque)
+static void vhost_scsi_pre_save(void *opaque)
 {
     VHostSCSI *s = opaque;
 
     /* At this point, backend must be stopped, otherwise
      * it might keep writing to memory. */
     assert(!s->dev.started);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_virtio_vhost_scsi = {

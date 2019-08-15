@@ -88,6 +88,7 @@ typedef struct {
     proc_cmd_t cmd;
     int bytestream;
     size_t size;
+    size_t size_id;
 
     union {
         uint64_t u64;
@@ -98,6 +99,8 @@ typedef struct {
     int num_fds;
 
     uint8_t *data2;
+    uint8_t *id;
+
 } ProcMsg;
 
 struct conf_data_msg {

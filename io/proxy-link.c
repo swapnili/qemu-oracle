@@ -81,7 +81,7 @@ void proxy_link_finalize(ProxyLinkState *s)
 void proxy_proc_send(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan)
 {
     int rc;
-    uint8_t *data;
+    uint8_t *data, *buf = NULL;
     union {
         char control[CMSG_SPACE(REMOTE_MAX_FDS * sizeof(int))];
         struct cmsghdr align;
@@ -140,9 +140,18 @@ void proxy_proc_send(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan)
         data = (uint8_t *)msg + PROC_HDR_SIZE;
     }
 
+    if (msg->size_id > 0) {
+        buf = calloc(1, msg->size + msg->size_id);
+        assert(buf);
+        memcpy(buf, data, msg->size);
+        memcpy(buf + msg->size, msg->id, msg->size_id);
+        data = buf;
+    }
     do {
-        rc = write(sock, data, msg->size);
+        rc = write(sock, data, msg->size + msg->size_id);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+
+    free(buf);
 
     qemu_mutex_unlock(lock);
 }
@@ -151,7 +160,7 @@ void proxy_proc_send(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan)
 int proxy_proc_recv(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan)
 {
     int rc;
-    uint8_t *data;
+    uint8_t *data, *buf = NULL;
     union {
         char control[CMSG_SPACE(REMOTE_MAX_FDS * sizeof(int))];
         struct cmsghdr align;
@@ -207,10 +216,28 @@ int proxy_proc_recv(ProxyLinkState *s, ProcMsg *msg, ProcChannel *chan)
         data = (uint8_t *)&msg->data1;
     }
 
-    if (msg->size) {
+     if (msg->size) {
+        if (msg->size_id > 0) {
+            buf = calloc(1, msg->size + msg->size_id);
+            data = buf;
+        }
         do {
-            rc = read(sock, data, msg->size);
+            rc = read(sock, data, msg->size + msg->size_id);
         } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+        if (rc < 0) {
+            fprintf(stderr, "Read sock is an error!\n");
+            return rc;
+        }
+    }
+    if (msg->size && msg->bytestream) {
+        memcpy(msg->data2, data, msg->size);
+    } else {
+        memcpy((uint8_t *)&msg->data1, data, msg->size);
+    }
+
+    if (msg->size_id > 0) {
+        msg->id = calloc(1, msg->size_id);
+        memcpy(msg->id, data + msg->size, msg->size_id);
     }
 
     qemu_mutex_unlock(lock);

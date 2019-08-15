@@ -151,11 +151,15 @@ static void set_proxy_sock(PCIDevice *dev, int socket)
 }
 
 static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
-                          unsigned int op)
+                          char *id, unsigned int op)
 {
     ProcMsg msg;
     struct conf_data_msg conf_data;
     int wait;
+
+    if (!id) {
+        return -EINVAL;
+    }
 
     memset(&msg, 0, sizeof(ProcMsg));
     conf_data.addr = addr;
@@ -171,6 +175,8 @@ static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
     msg.size = sizeof(conf_data);
     msg.cmd = op;
     msg.bytestream = 1;
+    msg.id = (uint8_t *)g_strdup(dev->dev_id);
+    msg.size_id = strlen(dev->dev_id) + 1;
 
     if (op == CONF_WRITE) {
         msg.num_fds = 0;
@@ -188,6 +194,7 @@ static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
     }
 
     free(msg.data2);
+    free(msg.id);
 
     return 0;
 }
@@ -198,7 +205,8 @@ static uint32_t pci_proxy_read_config(PCIDevice *d, uint32_t addr, int len)
 
     (void)pci_default_read_config(d, addr, len);
 
-    config_op_send(PCI_PROXY_DEV(d), addr, &val, len, CONF_READ);
+    config_op_send(PCI_PROXY_DEV(d), addr, &val, len,
+                   PCI_PROXY_DEV(d)->dev_id, CONF_READ);
 
     return val;
 }
@@ -208,7 +216,8 @@ static void pci_proxy_write_config(PCIDevice *d, uint32_t addr, uint32_t val,
 {
     pci_default_write_config(d, addr, val, l);
 
-    config_op_send(PCI_PROXY_DEV(d), addr, &val, l, CONF_WRITE);
+    config_op_send(PCI_PROXY_DEV(d), addr, &val, l,
+                   PCI_PROXY_DEV(d)->dev_id, CONF_WRITE);
 }
 
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)

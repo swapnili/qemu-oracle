@@ -64,6 +64,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qemu/log.h"
 #include "qemu/cutils.h"
+#include "remote-opts.h"
 
 static ProxyLinkState *proxy_link;
 PCIDevice *remote_pci_dev;
@@ -468,6 +469,13 @@ int main(int argc, char *argv[])
 
     current_machine = MACHINE(REMOTE_MACHINE(object_new(TYPE_REMOTE_MACHINE)));
 
+    qemu_add_opts(&qemu_device_opts);
+    qemu_add_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&qemu_legacy_drive_opts);
+    qemu_add_drive_opts(&qemu_common_drive_opts);
+    qemu_add_drive_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&bdrv_runtime_opts);
+
     proxy_link = proxy_link_create();
     if (!proxy_link) {
         printf("Could not create proxy link\n");
@@ -481,6 +489,9 @@ int main(int argc, char *argv[])
     }
 
     proxy_link_init_channel(proxy_link, &proxy_link->com, fd);
+
+    parse_cmdline(argc - 2, argv + 2, NULL);
+
     proxy_link_set_callback(proxy_link, process_msg);
 
     start_handler(proxy_link);

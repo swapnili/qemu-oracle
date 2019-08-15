@@ -67,19 +67,83 @@
 #include "remote-opts.h"
 
 static ProxyLinkState *proxy_link;
-PCIDevice *remote_pci_dev;
-bool create_done;
 
-static void process_config_write(ProcMsg *msg)
+typedef struct remote_pci_devs {
+    char *id;
+    DeviceState *ds;
+    unsigned int created;
+    QLIST_ENTRY(remote_pci_devs) next;
+} remote_pci_devs;
+typedef struct pci_devs_listhead pci_devs_listhead;
+
+QLIST_HEAD(pci_devs_listhead, remote_pci_devs) pci_devs_head;
+/* This is needed to distinguish between different devices being initialized. */
+
+QemuMutex remote_ds_lock;
+static bool done_init;
+
+
+static remote_pci_devs *get_ds_from_list(const char *id, unsigned int size_id)
+{
+    remote_pci_devs *d;
+
+    qemu_mutex_lock(&remote_ds_lock);
+    QLIST_FOREACH(d, &pci_devs_head, next) {
+        if (id && d->id) {
+            if (strncmp(id, d->id, size_id) == 0) {
+                qemu_mutex_unlock(&remote_ds_lock);
+                return d;
+            }
+       }
+    }
+    qemu_mutex_unlock(&remote_ds_lock);
+
+    return NULL;
+}
+
+static void add_to_pci_devs_list(DeviceState *dev)
+{
+   remote_pci_devs *d;
+
+   if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        d = g_malloc(sizeof(remote_pci_devs));
+        d->ds = dev;
+        d->id = g_strdup(dev->id);
+        if (!d->id) {
+            return;
+        }
+        qemu_mutex_lock(&remote_ds_lock);
+        QLIST_INSERT_HEAD(&pci_devs_head, d, next);
+        qemu_mutex_unlock(&remote_ds_lock);
+
+    }
+}
+
+static void del_from_pci_devs_list(const char *id)
+{
+    remote_pci_devs *d;
+
+    d = get_ds_from_list((char *)id, strlen((char *)id));
+    if (!d) {
+        return;
+    }
+    g_free(d->id);
+    qemu_mutex_lock(&remote_ds_lock);
+    QLIST_REMOVE(d, next);
+    qemu_mutex_unlock(&remote_ds_lock);
+    g_free(d);
+}
+
+static void process_config_write(ProcMsg *msg, DeviceState *ds)
 {
     struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
 
     qemu_mutex_lock_iothread();
-    pci_default_write_config(remote_pci_dev, conf->addr, conf->val, conf->l);
+    pci_default_write_config(PCI_DEVICE(ds), conf->addr, conf->val, conf->l);
     qemu_mutex_unlock_iothread();
 }
 
-static void process_config_read(ProcMsg *msg)
+static void process_config_read(ProcMsg *msg, DeviceState *ds)
 {
     struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
     uint32_t val;
@@ -88,7 +152,7 @@ static void process_config_read(ProcMsg *msg)
     wait = msg->fds[0];
 
     qemu_mutex_lock_iothread();
-    val = pci_default_read_config(remote_pci_dev, conf->addr, conf->l);
+    val = pci_default_read_config(PCI_DEVICE(ds), conf->addr, conf->l);
     qemu_mutex_unlock_iothread();
 
     notify_proxy(wait, val);
@@ -233,6 +297,8 @@ fail:
     notify_proxy(wait, 1);
 
     PUT_REMOTE_WAIT(wait);
+
+    del_from_pci_devs_list((const char *)msg->id);
 }
 
 static int init_drive(QDict *rqdict, Error **errp)
@@ -313,7 +379,7 @@ static int setup_device(ProcMsg *msg, Error **errp)
     qstr = qstring_from_str((char *)msg->data2);
     obj = qobject_from_json(qstring_get_str(qstr), &local_error);
     if (!obj) {
-        error_setg(errp, "Could not get object!");
+        error_setg(errp, "Could not get object");
         return rc;
     }
 
@@ -338,13 +404,12 @@ static int setup_device(ProcMsg *msg, Error **errp)
 
     dev = qdev_device_add(opts, &local_error);
     if (!dev) {
-        error_setg(errp, "Could not add device %s.",
+        error_setg(errp, "Could not add device %s",
                    qstring_get_str(qobject_to_json(QOBJECT(qdict))));
         return rc;
     }
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        remote_pci_dev = PCI_DEVICE(dev);
-    }
+
+    add_to_pci_devs_list(dev);
     qemu_opts_del(opts);
 
     return 0;
@@ -354,10 +419,13 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
 {
     ProcMsg *msg = NULL;
     Error *err = NULL;
+    remote_pci_devs *r = NULL;
 
     if ((cond & G_IO_HUP) || (cond & G_IO_ERR)) {
         error_setg(&err, "socket closed, cond is %d", cond);
-        goto finalize_loop;
+        proxy_link_finalize(proxy_link);
+        proxy_link = NULL;
+        return;
     }
 
     msg = g_malloc0(sizeof(ProcMsg));
@@ -367,23 +435,32 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         goto finalize_loop;
     }
 
+    if (msg->cmd != DEV_OPTS && msg->cmd != DRIVE_OPTS &&
+        msg->cmd != SYNC_SYSMEM) {
+        r = get_ds_from_list((const char *)msg->id, msg->size_id);
+        if (!r) {
+            error_setg(&err, "Message was received for unknown device");
+            goto exit_loop;
+        }
+    }
+
     switch (msg->cmd) {
     case INIT:
         break;
     case CONF_WRITE:
-        if (create_done) {
-            process_config_write(msg);
+        if (r->created) {
+            process_config_write(msg, r->ds);
         }
 
         break;
     case CONF_READ:
-        if (create_done) {
-            process_config_read(msg);
+        if (r->created) {
+            process_config_read(msg, r->ds);
         }
 
         break;
     case BAR_WRITE:
-        if (create_done) {
+        if (r->created) {
             process_bar_write(msg, &err);
             if (err) {
                 error_report_err(err);
@@ -391,7 +468,7 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         }
         break;
     case BAR_READ:
-        if (create_done) {
+        if (r->created) {
             process_bar_read(msg, &err);
             if (err) {
                 error_report_err(err);
@@ -410,12 +487,15 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         }
         break;
     case SET_IRQFD:
-        process_set_irqfd_msg(remote_pci_dev, msg);
-        qdev_machine_creation_done();
-        qemu_mutex_lock_iothread();
-        qemu_run_machine_init_done_notifiers();
-        qemu_mutex_unlock_iothread();
-        create_done = true;
+        process_set_irqfd_msg(PCI_DEVICE(r->ds), msg);
+        r->created = true;
+        if (!done_init) {
+            qdev_machine_creation_done();
+            qemu_mutex_lock_iothread();
+            qemu_run_machine_init_done_notifiers();
+            qemu_mutex_unlock_iothread();
+            done_init = true;
+        }
         break;
     case DRIVE_OPTS:
         if (setup_drive(msg, &err)) {
@@ -438,18 +518,26 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         goto finalize_loop;
     }
 
+exit_loop:
+    if (msg->id) {
+        free(msg->id);
+    }
     g_free(msg);
 
     return;
 
 finalize_loop:
     error_report_err(err);
+    if (msg->id) {
+        free(msg->id);
+    }
     g_free(msg);
+
     proxy_link_finalize(proxy_link);
     proxy_link = NULL;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char **envp)
 {
     Error *err = NULL;
     int fd = -1;
@@ -491,6 +579,8 @@ int main(int argc, char *argv[])
     proxy_link_init_channel(proxy_link, &proxy_link->com, fd);
 
     parse_cmdline(argc - 2, argv + 2, NULL);
+    qemu_mutex_init(&remote_ds_lock);
+    QLIST_INIT(&pci_devs_head);
 
     proxy_link_set_callback(proxy_link, process_msg);
 

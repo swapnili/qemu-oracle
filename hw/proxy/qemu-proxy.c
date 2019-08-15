@@ -288,12 +288,15 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     dev->init_proxy = init_proxy;
 }
 
-static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,
+static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,
                                 bool write, hwaddr addr, uint64_t *val,
                                 unsigned size, bool memory)
 {
+    ProxyLinkState *proxy_link;
     ProcMsg msg;
     int wait;
+
+    proxy_link = dev->proxy_link;
 
     memset(&msg, 0, sizeof(ProcMsg));
 
@@ -314,18 +317,31 @@ static void send_bar_access_msg(ProxyLinkState *proxy_link, MemoryRegion *mr,
         msg.fds[0] = wait;
     }
 
+    if (dev->dev_id) {
+        msg.size_id = strlen(dev->dev_id) + 1;
+        msg.id = calloc(1, msg.size_id);
+        memcpy(msg.id, dev->dev_id, msg.size_id);
+    } else {
+        msg.size_id = 0;
+    }
+
     proxy_proc_send(proxy_link, &msg, proxy_link->com);
 
     if (!write) {
         *val = wait_for_remote(wait);
         PUT_REMOTE_WAIT(wait);
     }
+
+    if (msg.id) {
+        free(msg.id);
+    }
+
 }
 
 void proxy_default_bar_write(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
                              uint64_t val, unsigned size, bool memory)
 {
-    send_bar_access_msg(dev->proxy_link, mr, true, addr, &val, size, memory);
+    send_bar_access_msg(dev, mr, true, addr, &val, size, memory);
 }
 
 uint64_t proxy_default_bar_read(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
@@ -333,7 +349,7 @@ uint64_t proxy_default_bar_read(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
 {
     uint64_t val;
 
-    send_bar_access_msg(dev->proxy_link, mr, false, addr, &val, size, memory);
+    send_bar_access_msg(dev, mr, false, addr, &val, size, memory);
 
     return val;
 }

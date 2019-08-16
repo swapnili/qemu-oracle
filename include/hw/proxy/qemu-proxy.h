@@ -100,4 +100,6 @@ void proxy_default_bar_write(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
 uint64_t proxy_default_bar_read(PCIProxyDev *dev, MemoryRegion *mr, hwaddr addr,
                                 unsigned size, bool memory);
 
+void proxy_device_reset(DeviceState *dev);
+
 #endif /* QEMU_PROXY_H */

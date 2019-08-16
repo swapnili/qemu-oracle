@@ -76,6 +76,7 @@ typedef enum {
     DEVICE_DEL,
     PROXY_PING,
     MMIO_RETURN,
+    DEVICE_RESET,
     MAX,
 } proc_cmd_t;
 

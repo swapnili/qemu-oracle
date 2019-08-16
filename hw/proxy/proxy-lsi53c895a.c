@@ -128,6 +128,11 @@ static void proxy_lsi_realize(PCIProxyDev *dev, Error **errp)
     pci_register_bar(pci_dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
 }
 
+static void proxy_lsi_reset(DeviceState *dev)
+{
+    proxy_device_reset(dev);
+}
+
 static void proxy_lsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -145,6 +150,7 @@ static void proxy_lsi_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 
     dc->desc = "LSI Proxy Device";
+    dc->reset = proxy_lsi_reset;
 }
 
 static const TypeInfo lsi_proxy_dev_type_info = {

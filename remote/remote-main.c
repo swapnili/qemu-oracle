@@ -66,6 +66,9 @@
 #include "qemu/cutils.h"
 #include "remote-opts.h"
 
+#include "monitor/monitor.h"
+#include "sysemu/reset.h"
+
 static ProxyLinkState *proxy_link;
 
 typedef struct remote_pci_devs {
@@ -302,6 +305,11 @@ fail:
     del_from_pci_devs_list((const char *)msg->id);
 }
 
+static void process_device_reset_msg(ProcMsg *msg)
+{
+    qemu_devices_reset();
+}
+
 static int init_drive(QDict *rqdict, Error **errp)
 {
     QemuOpts *opts;
@@ -519,6 +527,9 @@ static void process_msg(GIOCondition cond, ProcChannel *chan)
         wait = msg->fds[0];
         notify_proxy(wait, (uint32_t)getpid());
         PUT_REMOTE_WAIT(wait);
+        break;
+    case DEVICE_RESET:
+        process_device_reset_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command");

@@ -1606,7 +1606,7 @@ run_configure() {
         --libexecdir=%{_libexecdir} \
         --with-pkgversion=%{name}-%{version}-%{release} \
         --disable-strip \
-        --disable-werror \
+        --enable-werror \
         --enable-kvm \
 %ifarch s390 %{mips64}
         --enable-tcg-interpreter \

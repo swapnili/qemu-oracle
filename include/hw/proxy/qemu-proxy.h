@@ -51,6 +51,7 @@ typedef struct PCIProxyDev {
     ProxyLinkState *proxy_link;
 
     RemoteMemSync *sync;
+    bool mem_init;
     struct kvm_irqfd irqfd;
 
     EventNotifier intr;

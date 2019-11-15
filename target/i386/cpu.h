@@ -1272,6 +1272,9 @@ typedef struct CPUX86State {
     int64_t tsc_khz;
     int64_t user_tsc_khz; /* for sanity check only */
     void *kvm_xsave_buf;
+#if defined(CONFIG_KVM)
+    struct kvm_nested_state *nested_state;
+#endif
 
     uint64_t mcg_cap;
     uint64_t mcg_ctl;

@@ -85,6 +85,7 @@ struct KVMState
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
+    int max_nested_state_len;
     int many_ioeventfds;
     int intx_set_mask;
     /* The man page (and posix) say ioctl numbers are signed int, but
@@ -1720,6 +1721,8 @@ static int kvm_init(MachineState *ms)
     s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
 #endif
 
+    s->max_nested_state_len = kvm_check_extension(s, KVM_CAP_NESTED_STATE);
+
 #ifdef KVM_CAP_IRQ_ROUTING
     kvm_direct_msi_allowed = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
 #endif
@@ -2250,6 +2253,11 @@ int kvm_has_robust_singlestep(void)
 int kvm_has_debugregs(void)
 {
     return kvm_state->debugregs;
+}
+
+int kvm_max_nested_state_length(void)
+{
+    return kvm_state->max_nested_state_len;
 }
 
 int kvm_has_many_ioeventfds(void)

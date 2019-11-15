@@ -57,7 +57,7 @@
 					 * Steering */
 #define VIRTIO_NET_F_CTRL_MAC_ADDR 23	/* Set MAC address */
 
-#define VIRTIO_NET_F_STANDBY       62	/* Act as standby for another device
+#define VIRTIO_NET_F_STANDBY	  62	/* Act as standby for another device
 					 * with the same MAC.
                                          */
 

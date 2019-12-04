@@ -84,6 +84,9 @@
 #include "migration/misc.h"
 
 static MPQemuLinkState *mpqemu_link;
+void process_msg(GIOCondition cond, MPQemuChannel *chan);
+
+#define MUSER_APPROACH	1
 
 PCIDevice **remote_pci_devs;
 uint64_t nr_devices;
@@ -439,7 +442,7 @@ static int process_start_mig_in(MPQemuMsg *msg)
     return rc;
 }
 
-static void process_msg(GIOCondition cond, MPQemuChannel *chan)
+void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
     Error *err = NULL;
@@ -563,10 +566,21 @@ finalize_loop:
     mpqemu_link = NULL;
 }
 
+#ifdef MUSER_APPROACH
+
+static void muser_main(void)
+{
+}
+
+#endif
+
 int main(int argc, char *argv[])
 {
     Error *err = NULL;
+
+#ifndef MUSER_APPROACH
     int fd = -1;
+#endif
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -600,6 +614,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+#ifndef MUSER_APPROACH
     fd = qemu_parse_fd(argv[1]);
     if (fd == -1) {
         printf("Failed to parse fd for remote process.\n");
@@ -615,11 +630,14 @@ int main(int argc, char *argv[])
     }
     mpqemu_init_channel(mpqemu_link, &mpqemu_link->mmio, fd);
 
-    migration_object_init();
-
     parse_cmdline(argc - 3, argv + 3, NULL);
 
     mpqemu_link_set_callback(mpqemu_link, process_msg);
+#else
+    parse_cmdline(argc - 1, argv + 1, NULL);
+#endif
+
+    migration_object_init();
 
     qemu_opts_foreach(qemu_find_opts("chardev"),
                       chardev_init_func, NULL, &error_fatal);
@@ -627,7 +645,13 @@ int main(int argc, char *argv[])
     qemu_opts_foreach(qemu_find_opts("mon"),
                       mon_init_func, NULL, &error_fatal);
 
+#ifndef MUSER_APPROACH
     mpqemu_start_coms(mpqemu_link);
+#endif
+
+#ifdef MUSER_APPROACH
+    muser_main();
+#endif
 
     return 0;
 }

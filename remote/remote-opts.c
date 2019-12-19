@@ -113,6 +113,12 @@ void parse_cmdline(int argc, char **argv, char **envp)
                     monitor_parse(optarg, "readline", false);
                 }
                 break;
+            case QEMU_OPTION_device:
+                if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
+                                             optarg, true)) {
+                    exit(1);
+                }
+                break;
             default:
                 break;
             }
@@ -126,6 +132,9 @@ void parse_cmdline(int argc, char **argv, char **envp)
         /* We printed help */
         exit(0);
     }
+
+    qemu_opts_foreach(qemu_find_opts("device"),
+                      device_init_func, NULL, &error_fatal);
 
     return;
 }

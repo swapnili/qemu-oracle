@@ -133,8 +133,9 @@ void parse_cmdline(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    qemu_opts_foreach(qemu_find_opts("device"),
-                      device_init_func, NULL, &error_fatal);
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                      set_device_uuid, NULL, &error_fatal)) {
+    }
 
     return;
 }

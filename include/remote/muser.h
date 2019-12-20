@@ -1,7 +1,7 @@
 /*
- * Remote device initialization
+ * MUSER Interface for Multi-Process QEMU
  *
- * Copyright 2019, Oracle and/or its affiliates.
+ * Copyright 2020, Oracle and/or its affiliates.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,21 @@
  * THE SOFTWARE.
  */
 
-#ifndef REMOTE_OPTS_H
-#define REMOTE_OPTS_H
+#ifndef REMOTE_MUSER_H
+#define REMOTE_MUSER_H
 
-void parse_cmdline(int argc, char **argv, char **envp);
+#include "qemu/osdep.h"
+#include "qemu-common.h"
 
-int set_device_uuid(void *opaque, QemuOpts *opts, Error **errp);
+#include <muser/muser.h>
+
+// This structure is indexed by id for now
+typedef struct MUserDevices {
+    PCIDevice *pci_dev;
+    char *uuid;
+    lm_dev_info_t *dev_info;
+} MUserDevices;
+
+PCIDevice *get_mdev_by_id(unsigned int id);
 
 #endif
-

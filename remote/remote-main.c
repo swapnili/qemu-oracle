@@ -83,6 +83,9 @@
 #include "vl.h"
 #include "migration/misc.h"
 
+#include "qemu/uuid.h"
+#include "remote/muser.h"
+
 static MPQemuLinkState *mpqemu_link;
 void process_msg(GIOCondition cond, MPQemuChannel *chan);
 
@@ -91,6 +94,14 @@ void process_msg(GIOCondition cond, MPQemuChannel *chan);
 PCIDevice **remote_pci_devs;
 uint64_t nr_devices;
 bool create_done;
+
+#ifdef MUSER_APPROACH
+
+MUserDevices **mdevs;
+unsigned long nr_mdevs;
+//static QemuMutex mdevs_lock;
+
+#endif
 
 static void process_config_write(MPQemuMsg *msg)
 {
@@ -325,6 +336,59 @@ static int setup_drive(MPQemuMsg *msg, Error **errp)
 
     return 0;
 }
+
+#ifdef MUSER_APPROACH
+
+int set_device_uuid(void *opaque, QemuOpts *opts, Error **errp)
+{
+    DeviceState *dev = NULL;
+    Error *local_error = NULL;
+    char *uuid;
+
+    qemu_opt_unset(opts, "socket");
+    qemu_opt_unset(opts, "remote");
+    qemu_opt_unset(opts, "command");
+    uuid = qemu_opt_get_del(opts, "uuid");
+    /*
+     * TODO: use the bus and addr from the device options. For now
+     * we use default value.
+     */
+    qemu_opt_unset(opts, "bus");
+    qemu_opt_unset(opts, "addr");
+
+    printf("Adding device %lu, uuid %s\n", nr_mdevs,  uuid);
+    dev = qdev_device_add(opts, &local_error);
+    if (!dev) {
+        printf("Could not add device %lu, uuid %s\n", nr_mdevs,  uuid);
+        /* Dont exit, continue on failure. */
+        return 0;
+    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        //qemu_mutex_lock(&mdevs_lock);
+        mdevs = g_realloc(mdevs, (nr_mdevs + 1) * sizeof(MUserDevices *));
+        mdevs[nr_mdevs] = g_malloc0(sizeof(MUserDevices));
+        mdevs[nr_mdevs]->pci_dev = PCI_DEVICE(dev);
+        if (uuid) {
+            /* We may want to parse uuid and make sure its conforms the format.
+            quuid = g_malloc0(sizeof(QemuUUID));
+
+            if (qemu_uuid_parse(uuid, quuid) != 0)
+            {
+                error_setg(errp, "Error parsing uuid %s.", uuid);
+                return -1;
+            }*/
+            mdevs[nr_mdevs]->uuid = strdup(uuid);
+        }
+        nr_mdevs++;
+        //qemu_mutex_unlock(&mdevs_lock);
+    }
+
+    qemu_opts_del(opts);
+
+    return 0;
+}
+
+#endif
 
 static int setup_device(MPQemuMsg *msg, Error **errp)
 {
@@ -567,6 +631,13 @@ finalize_loop:
 }
 
 #ifdef MUSER_APPROACH
+
+// TODO: Cand be inline + hash
+PCIDevice *get_mdev_by_id(unsigned int id) {
+    if (mdevs[id])
+        return mdevs[id]->pci_dev;
+    return NULL;
+}
 
 static void muser_main(void)
 {

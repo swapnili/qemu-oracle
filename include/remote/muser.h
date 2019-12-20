@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "hw/pci/pci.h"
 
 #include <muser/muser.h>
 
@@ -36,6 +37,10 @@ typedef struct MUserDevices {
     char *uuid;
     lm_dev_info_t *dev_info;
 } MUserDevices;
+
+typedef struct {
+    void *opaque[LM_DEV_NUM_REGS];
+} muser_pod_t;
 
 PCIDevice *get_mdev_by_id(unsigned int id);
 

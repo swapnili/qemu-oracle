@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <muser/muser.h>
 
 #include "qemu/module.h"
 #include "remote/pcihost.h"
@@ -639,8 +640,70 @@ PCIDevice *get_mdev_by_id(unsigned int id) {
     return NULL;
 }
 
+static void *muser_run(void *opaque)
+{
+    lm_dev_info_t *dev_info = opaque;
+
+    if (lm_ctx_run(dev_info) != 0) {
+        printf("Failed to launch device %s\n", dev_info->uuid);
+    }
+
+    return NULL;
+}
+
 static void muser_main(void)
 {
+    lm_dev_info_t *dev_info;
+    PCIDeviceClass *pcic;
+    QemuThread *threads;
+    GMainContext *ctx;
+    muser_pod_t *pod;
+    GMainLoop *loop;
+    PCIDevice *pdev;
+    int i, j;
+
+    ctx = g_main_context_default();
+    loop = g_main_loop_new(ctx, FALSE);
+
+    threads = g_malloc0(nr_mdevs * sizeof(QemuThread));
+
+    dev_info = g_malloc0(nr_mdevs * sizeof(lm_dev_info_t));
+
+    for (i = 0; i < nr_mdevs; i++) {
+        pcic = PCI_DEVICE_GET_CLASS(mdevs[i]->pci_dev);
+        pdev = PCI_DEVICE(mdevs[i]->pci_dev);
+        pod = g_malloc0(sizeof(muser_pod_t));
+
+        for (j = 0; j < PCI_NUM_REGIONS; j++) {
+            if (pdev->io_regions[j].size) {
+                pod->opaque[j] = pdev->io_regions[j].memory->opaque;
+            }
+        }
+
+        pod->opaque[LM_DEV_CFG_REG_IDX] = pdev;
+
+        dev_info[i] = (lm_dev_info_t){
+            .pci_info = {
+                .id = {.vid = pcic->vendor_id, .did = pcic->device_id },
+                .irq_count[LM_DEV_INTX_IRQ_IDX] = 1,
+            },
+            .uuid = mdevs[i]->uuid,
+            .pvt = pod,
+        };
+
+        qemu_thread_create(&threads[i], "mdev", muser_run, (void *)&dev_info[i],
+                           QEMU_THREAD_JOINABLE);
+    }
+
+    g_main_loop_run(loop);
+
+    for (i = 0; i < nr_mdevs; i++) {
+        g_free(dev_info[i].pvt);
+    }
+
+    g_free(dev_info);
+
+    g_free(threads);
 }
 
 #endif
@@ -721,6 +784,13 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef MUSER_APPROACH
+    qdev_machine_creation_done();
+    qemu_mutex_lock_iothread();
+    qemu_run_machine_init_done_notifiers();
+    qemu_mutex_unlock_iothread();
+
+    remote_runstate_set(RUN_STATE_RUNNING);
+
     muser_main();
 #endif
 

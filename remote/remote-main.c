@@ -640,6 +640,62 @@ PCIDevice *get_mdev_by_id(unsigned int id) {
     return NULL;
 }
 
+static void cfg_read(PCIDevice *pdev, uint32_t off, char * const buf, int size)
+{
+    uint32_t val = pci_default_read_config(pdev, off, size);
+    unsigned char *out = (unsigned char *)&val;
+    int i = 0;
+
+    for (i = 0; i < size; i ++) {
+        buf[i] = out[i];
+    }
+}
+
+static void cfg_write(PCIDevice *pdev, uint32_t off, char * const buf, int size)
+{
+    uint32_t val = 0;
+    unsigned char *in = (unsigned char *)&val;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        in[i] = buf[i];
+    }
+
+    pci_default_write_config(pdev, off, val, size);
+}
+
+static ssize_t cfg_access(void *pvt, char * const buf, size_t count,
+                          loff_t offset, const bool is_write)
+{
+    muser_pod_t *pod = (muser_pod_t *)pvt;
+    PCIDevice *pdev = pod->opaque[LM_DEV_CFG_REG_IDX];
+    uint32_t l_off = offset;
+    int l_count = count;
+    int l_size, i;
+
+    i = 0;
+
+    qemu_mutex_lock_iothread();
+
+    while (l_count > 0) {
+        l_size = (l_count >= 4) ? 4 : l_count;
+
+        if (is_write) {
+            cfg_write(pdev, l_off, (buf + i), l_size);
+        } else {
+            cfg_read(pdev, l_off, (buf + i), l_size);
+        }
+
+        l_count -= l_size;
+        l_off += l_size;
+        i += l_size;
+    };
+
+    qemu_mutex_unlock_iothread();
+
+    return count;
+}
+
 static void *muser_run(void *opaque)
 {
     lm_dev_info_t *dev_info = opaque;
@@ -685,6 +741,11 @@ static void muser_main(void)
         dev_info[i] = (lm_dev_info_t){
             .pci_info = {
                 .id = {.vid = pcic->vendor_id, .did = pcic->device_id },
+                .reg_info[LM_DEV_CFG_REG_IDX] = {
+                    .flags = LM_REG_FLAG_RW,
+                    .size = 256,
+                    .fn = &cfg_access,
+                },
                 .irq_count[LM_DEV_INTX_IRQ_IDX] = 1,
             },
             .uuid = mdevs[i]->uuid,

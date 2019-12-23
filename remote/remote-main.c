@@ -733,6 +733,8 @@ static void muser_main(void)
         for (j = 0; j < PCI_NUM_REGIONS; j++) {
             if (pdev->io_regions[j].size) {
                 pod->opaque[j] = pdev->io_regions[j].memory->opaque;
+                pod->bar_access[j] =
+                    (MemoryRegionOps *)pdev->io_regions[j].memory->ops;
             }
         }
 
@@ -741,6 +743,21 @@ static void muser_main(void)
         dev_info[i] = (lm_dev_info_t){
             .pci_info = {
                 .id = {.vid = pcic->vendor_id, .did = pcic->device_id },
+                .reg_info[LM_DEV_BAR0_REG_IDX] = {
+                    .flags = LM_REG_FLAG_RW,
+                    .size = 256,
+                    .fn = &bar0_access,
+                 },
+                .reg_info[LM_DEV_BAR1_REG_IDX] = {
+                    .flags = LM_REG_FLAG_RW,
+                    .size = 0x400,
+                    .fn = &bar1_access,
+                 },
+                .reg_info[LM_DEV_BAR2_REG_IDX] = {
+                    .flags = LM_REG_FLAG_RW,
+                    .size = 0x2000,
+                    .fn = &bar2_access,
+                 },
                 .reg_info[LM_DEV_CFG_REG_IDX] = {
                     .flags = LM_REG_FLAG_RW,
                     .size = 256,

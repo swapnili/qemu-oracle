@@ -40,8 +40,22 @@ typedef struct MUserDevices {
 
 typedef struct {
     void *opaque[LM_DEV_NUM_REGS];
+    MemoryRegionOps *bar_access[PCI_NUM_REGIONS];
 } muser_pod_t;
 
 PCIDevice *get_mdev_by_id(unsigned int id);
+
+ssize_t bar0_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
+ssize_t bar1_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
+ssize_t bar2_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
+ssize_t bar3_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
+ssize_t bar4_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
+ssize_t bar5_access(void *pvt, char * const buf, size_t count, loff_t offset,
+                    const bool is_write);
 
 #endif

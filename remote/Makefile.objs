@@ -4,3 +4,4 @@ remote-pci-obj-$(CONFIG_MPQEMU) += pcihost.o
 remote-pci-obj-$(CONFIG_MPQEMU) += machine.o
 remote-pci-obj-$(CONFIG_MPQEMU) += iohub.o
 remote-pci-obj-$(CONFIG_MPQEMU) +=../vl-parse.o
+remote-pci-obj-$(CONFIG_MPQEMU) +=muser.o

@@ -58,4 +58,7 @@ ssize_t bar4_access(void *pvt, char * const buf, size_t count, loff_t offset,
 ssize_t bar5_access(void *pvt, char * const buf, size_t count, loff_t offset,
                     const bool is_write);
 
+void handle_region_notice(int fd, void *pvt, dma_addr_t dma_addr, size_t size,
+                          off_t offset, bool is_add);
+
 #endif

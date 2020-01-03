@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 
 #include "remote/muser.h"
+#include "remote/memory.h"
 
 static size_t bar_access_write(void *opaque, char * const buf, size_t count,
                                loff_t offset, MemoryRegionOps *ops)
@@ -118,3 +119,14 @@ DEFINE_BAR_ACCESS(2);
 DEFINE_BAR_ACCESS(3);
 DEFINE_BAR_ACCESS(4);
 DEFINE_BAR_ACCESS(5);
+
+void handle_region_notice(int fd, void *pvt, dma_addr_t dma_addr, size_t size,
+                          off_t offset, bool is_add)
+{
+    if (is_add) {
+        add_memory_region(fd, (hwaddr)dma_addr, (ram_addr_t)offset,
+                          (uint64_t)size);
+    } else {
+        del_memory_region((hwaddr)dma_addr, (uint64_t)size);
+    }
+}

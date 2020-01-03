@@ -354,13 +354,14 @@ int set_device_uuid(void *opaque, QemuOpts *opts, Error **errp)
      * TODO: use the bus and addr from the device options. For now
      * we use default value.
      */
-    qemu_opt_unset(opts, "bus");
+    //qemu_opt_unset(opts, "bus");
     qemu_opt_unset(opts, "addr");
 
     printf("Adding device %lu, uuid %s\n", nr_mdevs,  uuid);
     dev = qdev_device_add(opts, &local_error);
     if (!dev) {
         printf("Could not add device %lu, uuid %s\n", nr_mdevs,  uuid);
+        error_report_err(local_error);
         /* Dont exit, continue on failure. */
         return 0;
     }
@@ -763,6 +764,7 @@ static void muser_main(void)
                     .size = 256,
                     .fn = &cfg_access,
                 },
+                .reg_notify = &handle_region_notice,
                 .irq_count[LM_DEV_INTX_IRQ_IDX] = 1,
             },
             .uuid = mdevs[i]->uuid,

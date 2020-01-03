@@ -36,6 +36,7 @@
 #include "io/mpqemu-link.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
+#include "qemu/int128.h"
 
 static void remote_ram_destructor(MemoryRegion *mr)
 {
@@ -93,6 +94,72 @@ void remote_sysmem_reconfig(MPQemuMsg *msg, Error **errp)
                                     subregion);
     }
 
+    memory_region_transaction_commit();
+
+    qemu_mutex_unlock_iothread();
+}
+
+void add_memory_region(int fd, hwaddr gpa, ram_addr_t offset, uint64_t size)
+{
+    MemoryRegion *sysmem, *subregion;
+    Error *local_err = NULL;
+
+    sysmem = get_system_memory();
+
+    qemu_mutex_lock_iothread();
+
+    memory_region_transaction_begin();
+
+    subregion = g_new(MemoryRegion, 1);
+
+    remote_ram_init_from_fd(subregion, fd, size, offset, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        goto exit;
+    }
+
+    memory_region_add_subregion(sysmem, gpa, subregion);
+
+exit:
+    memory_region_transaction_commit();
+
+    qemu_mutex_unlock_iothread();
+}
+
+void del_memory_region(hwaddr gpa, uint64_t size)
+{
+    MemoryRegion *sysmem, *subregion;
+    Int128 reg_size;
+    FlatView *fv;
+    hwaddr l, addr1;
+
+    sysmem = get_system_memory();
+
+    qemu_mutex_lock_iothread();
+
+    memory_region_transaction_begin();
+
+    fv = address_space_to_flatview(&address_space_memory);
+
+    subregion = flatview_translate(fv, gpa, &addr1, &l, false, MEMTXATTRS_UNSPECIFIED);
+    if (!subregion) {
+        printf("Failed to lookup MemoryRegion\n");
+        goto exit;
+    }
+
+    reg_size = int128_make64(size);
+
+    if (!int128_eq(subregion->size, reg_size)) {
+        printf("Unable to delete a portion of the region\n");
+        assert(0);
+        goto exit;
+    }
+
+    if (subregion->ram) {
+        memory_region_del_subregion(sysmem, subregion);
+    }
+
+exit:
     memory_region_transaction_commit();
 
     qemu_mutex_unlock_iothread();

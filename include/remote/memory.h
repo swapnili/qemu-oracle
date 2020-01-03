@@ -31,4 +31,8 @@
 
 void remote_sysmem_reconfig(MPQemuMsg *msg, Error **errp);
 
+void add_memory_region(int fd, hwaddr gpa, ram_addr_t offset, uint64_t size);
+
+void del_memory_region(hwaddr gpa, uint64_t size);
+
 #endif

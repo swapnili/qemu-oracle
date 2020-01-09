@@ -102,6 +102,9 @@ MUserDevices **mdevs;
 unsigned long nr_mdevs;
 //static QemuMutex mdevs_lock;
 
+/* FIXME: Assuming only one MDev per process */
+lm_ctx_t *mpqemu_lmctx;
+
 #endif
 
 static void process_config_write(MPQemuMsg *msg)
@@ -701,9 +704,15 @@ static void *muser_run(void *opaque)
 {
     lm_dev_info_t *dev_info = opaque;
 
-    if (lm_ctx_run(dev_info) != 0) {
-        printf("Failed to launch device %s\n", dev_info->uuid);
+    mpqemu_lmctx = lm_ctx_create(dev_info);    
+    if (mpqemu_lmctx == NULL) {
+        printf("Unable to create libmuser context\n");
+        return NULL;
     }
+
+    (void)lm_ctx_drive(mpqemu_lmctx);
+
+    lm_ctx_destroy(mpqemu_lmctx);
 
     return NULL;
 }

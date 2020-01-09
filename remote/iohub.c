@@ -34,6 +34,10 @@
 #include "remote/machine.h"
 #include "qemu/main-loop.h"
 
+#include <muser/muser.h>
+
+extern lm_ctx_t *mpqemu_lmctx;
+
 static void remote_iohub_initfn(Object *obj)
 {
     RemoteIOHubState *iohub = REMOTE_IOHUB_DEVICE(obj);
@@ -107,7 +111,8 @@ void remote_iohub_set_irq(void *opaque, int pirq, int level)
 
     if (level) {
         if (++iohub->irq_level[pirq] == 1) {
-            event_notifier_set(&iohub->irqfds[pirq]);
+            //event_notifier_set(&iohub->irqfds[pirq]);
+            lm_irq_trigger(mpqemu_lmctx, LM_DEV_INTX_IRQ_IDX);
         }
     } else if (iohub->irq_level[pirq] > 0) {
         iohub->irq_level[pirq]--;

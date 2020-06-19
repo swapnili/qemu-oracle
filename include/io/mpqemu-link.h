@@ -15,6 +15,8 @@
 #include "qemu/thread.h"
 #include "io/channel.h"
 #include "exec/hwaddr.h"
+#include "io/channel-socket.h"
+#include "hw/pci/proxy.h"
 
 #define REMOTE_MAX_FDS 8
 
@@ -81,6 +83,8 @@ void mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
 void mpqemu_msg_recv_create_co(MPQemuMsg *msg, QIOChannel *ioc,
                                    Error **errp);
 
+uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
+                                         Error **errp);
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);
 void mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);
 

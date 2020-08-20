@@ -52,6 +52,22 @@ typedef struct {
     int num_fds;
 } MPQemuMsg;
 
+struct MPQemuRequest {
+    MPQemuMsg *msg;
+    QIOChannel *ioc;
+    Coroutine *co;
+    bool finished;
+    int error;
+    long ret;
+};
+
+typedef struct MPQemuRequest MPQemuRequest;
+
+void mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                   Error **errp);
+void mpqemu_msg_recv_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                   Error **errp);
+
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);
 void mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);
 

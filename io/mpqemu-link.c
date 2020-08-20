@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 {
@@ -128,6 +129,110 @@ fail:
     } else if (local_err) {
         error_report_err(local_err);
     }
+}
+
+static void coroutine_fn mpqemu_msg_send_co(void *data)
+{
+    MPQemuRequest *req = (MPQemuRequest *)data;
+    Error *local_err = NULL;
+
+    req->co = qemu_coroutine_self();
+    mpqemu_msg_send(req->msg, req->ioc, &local_err);
+    if (local_err) {
+        error_report("ERROR: failed to send command to remote %d, ",
+                     req->msg->cmd);
+        req->finished = true;
+        req->error = -EINVAL;
+        return;
+    }
+
+    req->finished = true;
+}
+
+void mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                  Error **errp)
+{
+    MPQemuRequest req = {0};
+
+    req.ioc = ioc;
+    if (!req.ioc) {
+        if (errp) {
+            error_setg(errp, "Channel is set to NULL");
+        } else {
+            error_report("Channel is set to NULL");
+        }
+        return;
+    }
+
+    req.msg = msg;
+    req.ret = 0;
+    req.finished = false;
+
+    req.co = qemu_coroutine_create(mpqemu_msg_send_co, &req);
+    qemu_coroutine_enter(req.co);
+
+    while (!req.finished) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+
+    if (req.error) {
+        error_setg(errp, "Error sending message to proxy, "
+                        "error %d", req.error);
+    }
+
+    return;
+}
+
+static void coroutine_fn mpqemu_msg_recv_co(void *data)
+{
+    MPQemuRequest *req = (MPQemuRequest *)data;
+    Error *local_err = NULL;
+
+    req->co = qemu_coroutine_self();
+    mpqemu_msg_recv(req->msg, req->ioc, &local_err);
+    if (local_err) {
+        error_report("ERROR: failed to send command to remote %d, ",
+                     req->msg->cmd);
+        req->finished = true;
+        req->error = -EINVAL;
+        return;
+    }
+
+    req->finished = true;
+}
+
+void mpqemu_msg_recv_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                  Error **errp)
+{
+    MPQemuRequest req = {0};
+
+    req.ioc = ioc;
+    if (!req.ioc) {
+        if (errp) {
+            error_setg(errp, "Channel is set to NULL");
+        } else {
+            error_report("Channel is set to NULL");
+        }
+        return;
+    }
+
+    req.msg = msg;
+    req.ret = 0;
+    req.finished = false;
+
+    req.co = qemu_coroutine_create(mpqemu_msg_recv_co, &req);
+    qemu_coroutine_enter(req.co);
+
+    while (!req.finished) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+
+    if (req.error) {
+        error_setg(errp, "Error sending message to proxy, "
+                        "error %d", req.error);
+    }
+
+    return;
 }
 
 bool mpqemu_msg_valid(MPQemuMsg *msg)

@@ -63,7 +63,9 @@ struct MPQemuRequest {
 
 typedef struct MPQemuRequest MPQemuRequest;
 
-uint64_t mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+void mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                   Error **errp);
+void mpqemu_msg_recv_create_co(MPQemuMsg *msg, QIOChannel *ioc,
                                    Error **errp);
 
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);

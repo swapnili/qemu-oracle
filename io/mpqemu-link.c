@@ -149,11 +149,10 @@ static void coroutine_fn mpqemu_msg_send_co(void *data)
     req->finished = true;
 }
 
-uint64_t mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+void mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
                                   Error **errp)
 {
     MPQemuRequest req = {0};
-    uint64_t ret = UINT64_MAX;
 
     req.ioc = ioc;
     if (!req.ioc) {
@@ -162,7 +161,7 @@ uint64_t mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
         } else {
             error_report("Channel is set to NULL");
         }
-        return ret;
+        return;
     }
 
     req.msg = msg;
@@ -181,9 +180,59 @@ uint64_t mpqemu_msg_send_create_co(MPQemuMsg *msg, QIOChannel *ioc,
                         "error %d", req.error);
     }
 
-    ret = req.ret;
+    return;
+}
 
-    return ret;
+static void coroutine_fn mpqemu_msg_recv_co(void *data)
+{
+    MPQemuRequest *req = (MPQemuRequest *)data;
+    Error *local_err = NULL;
+
+    req->co = qemu_coroutine_self();
+    mpqemu_msg_recv(req->msg, req->ioc, &local_err);
+    if (local_err) {
+        error_report("ERROR: failed to send command to remote %d, ",
+                     req->msg->cmd);
+        req->finished = true;
+        req->error = -EINVAL;
+        return;
+    }
+
+    req->finished = true;
+}
+
+void mpqemu_msg_recv_create_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                  Error **errp)
+{
+    MPQemuRequest req = {0};
+
+    req.ioc = ioc;
+    if (!req.ioc) {
+        if (errp) {
+            error_setg(errp, "Channel is set to NULL");
+        } else {
+            error_report("Channel is set to NULL");
+        }
+        return;
+    }
+
+    req.msg = msg;
+    req.ret = 0;
+    req.finished = false;
+
+    req.co = qemu_coroutine_create(mpqemu_msg_recv_co, &req);
+    qemu_coroutine_enter(req.co);
+
+    while (!req.finished) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+
+    if (req.error) {
+        error_setg(errp, "Error sending message to proxy, "
+                        "error %d", req.error);
+    }
+
+    return;
 }
 
 bool mpqemu_msg_valid(MPQemuMsg *msg)

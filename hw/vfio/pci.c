@@ -445,7 +445,7 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     }
 
     if (vdev->vbasedev.proxy != NULL) {
-        ret = vfio_user_set_irq_info(&vdev->vbasedev, irq_set);
+        ret = vfio_user_set_irqs(&vdev->vbasedev, irq_set);
      } else {
         ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
     }
@@ -588,7 +588,7 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
 
 static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
 {
-    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
+    VFIOPCIDevice *vdev = PCI_VFIOX(pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
 
     trace_vfio_msix_vector_release(vdev->vbasedev.name, nr);
@@ -3397,7 +3397,7 @@ static int vfio_user_pci_process_req(void *opaque, char *buf, VFIOUserFDs *fds)
     vfio_user_hdr_t *hdr = (vfio_user_hdr_t *)buf;
     int ret;
 
-    if (fds->numfds != 0) {
+    if (fds->recv_fds != 0) {
        return -EINVAL;
     }
     switch (hdr->command) {
@@ -3422,8 +3422,6 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     VFIOPCIDevice *vdev = PCI_VFIOU(pdev);
     VFIODevice *vbasedev = &vdev->vbasedev;
     VFIOGroup *group = NULL;
-    VFIOAddressSpace *space = NULL;
-    VFIOContainer *container = NULL;
     VFIOProxy *proxy;
     int ret;
     Error *err = NULL;
@@ -3439,12 +3437,13 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         error_setg(errp, "Remote proxy not found");
         return;
     }
+    vbasedev->proxy = proxy;
     vfio_user_set_reqhandler(vbasedev, vfio_user_pci_process_req, vdev); 
+
     if (vdev->vfuser.secure) {
         proxy->flags |= VFIO_PROXY_SECURE;
     }
-    vbasedev->proxy = proxy;
-
+ 
     vfio_user_validate_version(vbasedev, &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -3470,24 +3469,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
     vbasedev->group = group;
 
-    space = vfio_get_address_space(pci_device_iommu_address_space(pdev));
-
-    container = g_malloc0(sizeof(*container));
-    container->space = space;
-    container->fd = -1;
-    container->iommu_type = VFIO_TYPE1_IOMMU;
-    container->proxy = proxy;
-    container->pgsizes = 4096;
-    QLIST_INIT(&container->giommu_list);
-    QLIST_INIT(&container->group_list);
-    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
-
-    QLIST_INSERT_HEAD(&space->containers, container, next);
-    group->container = container;
-
-    container->listener = vfio_memory_listener;
-    memory_listener_register(&container->listener, container->space->as);
-    container->initialized = true;
+    vfio_connect_proxy(proxy, group, pci_device_iommu_address_space(pdev));
 
     ret = vfio_user_get_info(&vdev->vbasedev);
     if (ret) {
@@ -3502,8 +3484,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     }
 
     /* Get a copy of config space */
-    ret = vfio_user_region_read(vbasedev, VFIO_PCI_CONFIG_REGION_INDEX,
-                                vdev->config_offset,
+    ret = vfio_user_region_read(vbasedev, VFIO_PCI_CONFIG_REGION_INDEX, 0,
                                 MIN(pci_config_size(pdev), vdev->config_size),
                                 pdev->config);
     if (ret < 0) {

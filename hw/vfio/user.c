@@ -24,6 +24,7 @@
 #include "qemu/range.h"
 #include "qemu/sockets.h"
 #include "qemu/units.h"
+#include "qemu/qemu-print.h"
 #include "io/channel.h"
 #include "io/channel-util.h"
 #include "qapi/qmp/qdict.h"
@@ -49,7 +50,10 @@ static void vfio_user_send(VFIOProxy *proxy, vfio_user_hdr_t *msg, VFIOUserFDs *
 static void vfio_user_send_recv(VFIOProxy *proxy, vfio_user_hdr_t *msg, VFIOUserFDs *fds,
                                int rsize);
 
-static uint64_t max_send_fds = REMOTE_MAX_FDS;
+
+static uint64_t max_send_fds = VFIO_USER_DEF_MAX_FDS;
+static uint64_t max_msg_size = VFIO_USER_DEF_MAX_MSG;
+
 
 static void vfio_user_request_msg(vfio_user_hdr_t *hdr, uint16_t cmd, uint32_t size,
                                   uint32_t flags)
@@ -88,7 +92,7 @@ void vfio_user_recv(void *opaque)
     VFIOProxy *proxy = vbasedev->proxy;
     VFIOUserReply *reply = NULL;
     int *fdp = NULL;
-    VFIOUserFDs reqfds = { 0, fdp };
+    VFIOUserFDs reqfds = { 0, 0, fdp };
     vfio_user_hdr_t msg;
     struct iovec iov = {
         .iov_base = &msg,
@@ -97,7 +101,7 @@ void vfio_user_recv(void *opaque)
     int isreply, i, ret;
     size_t msgleft, numfds = 0;
     char *data, *buf = NULL;
-    Error *local_err;
+    Error *local_err = NULL;
 
     qemu_mutex_lock(&proxy->lock);
 
@@ -126,10 +130,18 @@ void vfio_user_recv(void *opaque)
         }
         QTAILQ_REMOVE(&proxy->pending, reply, next);
 
-        reply->fds->numfds = numfds;
+        /*
+         * Process any received FDs
+         */
         if (numfds != 0) {
+            if (reply->fds == NULL || reply->fds->recv_fds < numfds) {
+                error_setg(&local_err, "vfio_user_recv unexpected FDs");
+                goto err;
+            }
+            reply->fds->recv_fds = numfds;
             memcpy(reply->fds->fds, fdp, numfds * sizeof(int));
         }
+
     } else {
         /* 
          * The client doesn't expect any FDs in requests, but
@@ -139,7 +151,7 @@ void vfio_user_recv(void *opaque)
             error_setg(&local_err, "vfio_user_recv fd in client reply");
             goto err;
         }
-        reqfds.numfds = numfds;
+        reqfds.recv_fds = numfds;
     }
 
     /*
@@ -159,13 +171,15 @@ void vfio_user_recv(void *opaque)
         data = buf + sizeof(msg);
     }
 
-    ret = qio_channel_read(proxy->ioc, data, msgleft, &local_err);
-    if (ret < 0) {
-        goto err;
-    }
-    if (ret != msgleft) {
-        error_setg(&local_err, "vfio_user_recv short read of msg body");
-        goto err;
+    if (msgleft != 0) {
+        ret = qio_channel_read(proxy->ioc, data, msgleft, &local_err);
+        if (ret < 0) {
+            goto err;
+        }
+        if (ret != msgleft) {
+            error_setg(&local_err, "vfio_user_recv short read of msg body");
+            goto err;
+        }
     }
 
     /*
@@ -203,7 +217,7 @@ err:
         g_free(buf);
     }
     if (reply != NULL) {
-        /* force an error to keep sending thread from hanging */ 
+        /* force an error to keep sending thread from hanging */
         reply->msg->flags |= VFIO_USER_ERROR;
         reply->msg->error_reply = EINVAL;
         reply->complete = 1;
@@ -222,10 +236,10 @@ static void vfio_user_send_locked(VFIOProxy *proxy, vfio_user_hdr_t *msg, VFIOUs
     size_t numfds = 0;
     int msgleft, ret, *fdp = NULL;
     char *buf;
-    Error *local_err;
+    Error *local_err = NULL;
 
-    if (fds != NULL) {
-        numfds = fds->numfds;
+    if (fds != NULL && fds->send_fds != 0) {
+        numfds = fds->send_fds;
         fdp = fds->fds;
     }
     ret = qio_channel_writev_full(proxy->ioc, &iov, 1, fdp, numfds, &local_err);
@@ -386,19 +400,17 @@ static int caps_parse(QDict *qdict, struct cap_entry caps[], Error **errp)
         qobj = qdict_get(qdict, p->name);
         if (qobj != NULL) {
             if (p->check(qobj, errp)) {
-                qobject_unref(qdict);
-                return -1;
+                 return -1;
             }
             qdict_del(qdict, p->name);
         }
     }
-   if (qdict_size(qdict) != 0) {
-        error_setg(errp, "spurious capabilities");
-        qobject_unref(qdict);
-        return -1;
-   }
-   qobject_unref(qdict);
-   return 0;
+
+    /* warning, for now */
+    if (qdict_size(qdict) != 0) {
+        error_printf("spurious capabilities\n");
+    }
+    return 0;
 }
 
 static int check_pgsize(QObject *qobj, Error **errp)
@@ -423,8 +435,20 @@ static int check_max_fds(QObject *qobj, Error **errp)
     QNum *qn = qobject_to(QNum, qobj);
 
     if (qn == NULL || !qnum_get_try_uint(qn, &max_send_fds) ||
-        max_send_fds > REMOTE_MAX_FDS) {
+        max_send_fds > VFIO_USER_MAX_MAX_FDS) {
         error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_FDS);
+        return -1;
+    }
+    return 0;
+}
+
+static int check_max_msg(QObject *qobj, Error **errp)
+{
+    QNum *qn = qobject_to(QNum, qobj);
+
+    if (qn == NULL || !qnum_get_try_uint(qn, &max_msg_size) ||
+        max_msg_size > VFIO_USER_MAX_MAX_MSG) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_MSG);
         return -1;
     }
     return 0;
@@ -441,9 +465,26 @@ static int check_migr(QObject *qobj, Error **errp)
     return 0;
 }
 
-static struct cap_entry ver_1_0[] = {
+static struct cap_entry caps_cap[] = {
     { VFIO_USER_CAP_MAX_FDS, check_max_fds },
+    { VFIO_USER_CAP_MAX_MSG, check_max_msg },
     { VFIO_USER_CAP_MIGR, check_migr },
+    { NULL }
+};
+
+static int check_cap(QObject *qobj, Error **errp)
+{
+   QDict *qdict = qobject_to(QDict, qobj);
+
+    if (qdict == NULL || caps_parse(qdict, caps_cap, errp)) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP);
+        return -1;
+    }
+    return 0;
+}
+
+static struct cap_entry ver_0_0[] = {
+    { VFIO_USER_CAP, check_cap },
     { NULL }
 };
 
@@ -451,6 +492,7 @@ static int caps_check(int minor, const char *caps, Error **errp)
 {
     QObject *qobj;
     QDict *qdict;
+    int ret;
 
     qobj = qobject_from_json(caps, NULL);
     if (qobj == NULL) {
@@ -459,16 +501,19 @@ static int caps_check(int minor, const char *caps, Error **errp)
     }
     qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
-        error_setg(errp, "capbilities %s not an object", caps);
+        error_setg(errp, "capabilities %s not an object", caps);
         qobject_unref(qobj);
         return -1;
     }
+    ret = caps_parse(qdict, ver_0_0, errp);
 
-    return (caps_parse(qdict, ver_1_0, errp));
+    qobject_unref(qobj);
+    return ret;
 }
 
 static QString *caps_json(void)
 {
+    QDict *dict = qdict_new();
     QDict *capdict = qdict_new();
     QDict *migdict = qdict_new();
     QString *str;
@@ -476,10 +521,13 @@ static QString *caps_json(void)
     qdict_put_int(migdict, VFIO_USER_CAP_PGSIZE, 4096);
 
     qdict_put_obj(capdict, VFIO_USER_CAP_MIGR, QOBJECT(migdict));
-    qdict_put_int(capdict, VFIO_USER_CAP_MAX_FDS, REMOTE_MAX_FDS);
+    qdict_put_int(capdict, VFIO_USER_CAP_MAX_FDS, VFIO_USER_MAX_MAX_FDS);
+    qdict_put_int(capdict, VFIO_USER_CAP_MAX_MSG, VFIO_USER_DEF_MAX_MSG);
 
-    str = qobject_to_json(QOBJECT(capdict));
-    qobject_unref(capdict);
+    qdict_put_obj(dict, VFIO_USER_CAP, QOBJECT(capdict));
+
+    str = qobject_to_json(QOBJECT(dict));
+    qobject_unref(dict);
     return str;
 }
 
@@ -490,7 +538,7 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
     int size, caplen;
 
     caps = caps_json();
-    caplen = qstring_get_length(caps);
+    caplen = qstring_get_length(caps) + 1;
     size = sizeof (*msgp) + caplen;
     msgp = g_malloc0(size);
 
@@ -513,7 +561,7 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
     if (caps_check(msgp->minor, (char *)msgp + sizeof(*msgp), errp) != 0) {
         goto err;
     }
-        
+
     g_free(msgp);
     return 0;
 
@@ -526,22 +574,60 @@ int vfio_user_dma_map(VFIOProxy *proxy, struct vfio_user_map *map, VFIOUserFDs *
                       uint64_t nelem)
 {
     struct vfio_user_dma_map *msgp;
-    int size = sizeof(*msgp) + (nelem * sizeof(struct vfio_user_map));
-    int ret;
+    int ret, size, sent_elem, send_elem;
 
-    if (fds->numfds != nelem) {
+    /*
+     * Handle simple case
+     */
+    if (fds == NULL) {
+        size = sizeof(*msgp) + (nelem * sizeof(struct vfio_user_map));
+
+        msgp = g_malloc0(size);
+        vfio_user_request_msg(&msgp->hdr, VFIO_USER_DMA_MAP, size, 0);
+        memcpy(&msgp->table, map, nelem * sizeof(*map));
+
+        vfio_user_send_recv(proxy, &msgp->hdr, NULL, 0);
+        ret = (msgp->hdr.flags & VFIO_USER_ERROR) ? -msgp->hdr.error_reply : 0;
+
+        g_free(msgp);
+        return ret;
+    }
+
+    if (fds->send_fds != nelem) {
         error_printf("vfio_user_dma_map mismatch of FDs and table elements\n");
         return -EINVAL;
     }
-    msgp = g_malloc0(size);
-    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DMA_MAP, size, 0);
-    memcpy(&msgp->table, map, nelem * sizeof(*map));
+    if (fds->recv_fds != 0) {
+        error_printf("vfio_user_dma_map can't receive FDs\n");
+        return -EINVAL;
+    }
 
-    vfio_user_send_recv(proxy, &msgp->hdr, fds, 0);
-    ret = (msgp->hdr.flags & VFIO_USER_ERROR) ? -msgp->hdr.error_reply : 0;
+    /*
+     * Send in chunks if over max_send_fds
+     */
+    for (sent_elem = 0; nelem > sent_elem; sent_elem += send_elem) {
+        VFIOUserFDs loop_fds;
 
-    g_free(msgp);
-    return ret;
+        send_elem = MIN(nelem - sent_elem, max_send_fds);
+        size = sizeof(*msgp) + (send_elem * sizeof(struct vfio_user_map));
+
+        msgp = g_malloc0(size);
+        vfio_user_request_msg(&msgp->hdr, VFIO_USER_DMA_MAP, size, 0);
+        memcpy(&msgp->table, map + sent_elem, send_elem * sizeof(*map));
+
+        loop_fds.send_fds = send_elem;
+        loop_fds.recv_fds = 0;
+        loop_fds.fds = fds->fds + sent_elem;
+
+        vfio_user_send_recv(proxy, &msgp->hdr, &loop_fds, 0);
+        ret = (msgp->hdr.flags & VFIO_USER_ERROR) ? -msgp->hdr.error_reply : 0;
+
+        g_free(msgp);
+        if (ret < 0 ) {
+            return ret;
+        }
+    }
+    return 0;
 }
 
 int vfio_user_dma_unmap(VFIOProxy *proxy, struct vfio_user_map *map,
@@ -584,7 +670,7 @@ int vfio_user_get_info(VFIODevice *vbasedev)
 }
 
 int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
-                                     struct vfio_region_info *info, VFIOUserFDs *fds)
+                              struct vfio_region_info *info, VFIOUserFDs *fds)
 {
     struct vfio_user_region_info *msgp;
     int size;
@@ -594,6 +680,11 @@ int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
         error_printf("vfio_user_get_region_info argsz too small\n");
         return -EINVAL;
     }
+    if (fds != NULL && fds->send_fds != 0) {
+        error_printf("vfio_user_get_region_info can't send FDs\n");
+        return -EINVAL;
+    }
+
     size = info->argsz + sizeof(vfio_user_hdr_t);
     msgp = g_malloc0(size);
 
@@ -625,28 +716,69 @@ int vfio_user_get_irq_info(VFIODevice *vbasedev, struct vfio_irq_info *info)
     return 0;
 }
 
-int vfio_user_set_irq_info(VFIODevice *vbasedev, struct vfio_irq_set *irq)
+int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq)
 {
-    struct vfio_user_irq_set smallmsg, *msgp;
+    struct vfio_user_irq_set *msgp;
+    uint32_t size, nfds, send_fds, sent_fds;
 
-    /* only allocate if sending data array with set message */
     if (irq->argsz < sizeof(*irq)) {
-        error_printf("vfio_user_set_irq_info argsz too small\n");
+        error_printf("vfio_user_set_irqs argsz too small\n");
         return -EINVAL;
     }
-    msgp = irq->argsz > sizeof(smallmsg) ? g_malloc0(irq->argsz) : &smallmsg;
 
-    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_GET_IRQ_INFO, irq->argsz, 0);
-    memcpy(&msgp->irq_set, irq, irq->argsz);
+    /*
+     * Handle simple case
+     */
+    if ((irq->flags & VFIO_IRQ_SET_DATA_EVENTFD) == 0) {
+        size = sizeof(vfio_user_hdr_t) + irq->argsz;
+        msgp = g_malloc0(size);
 
-    vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, NULL, 0);
-    if (msgp->hdr.flags & VFIO_USER_ERROR) {
-        return -msgp->hdr.error_reply;
-    }
+        vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_SET_IRQS, size, 0);
+        memcpy(&msgp->irq_set, irq, irq->argsz);
 
-    if (msgp != &smallmsg) {
+        vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, NULL, 0);
+        if (msgp->hdr.flags & VFIO_USER_ERROR) {
+            g_free(msgp);
+            return -msgp->hdr.error_reply;
+        }
+
         g_free(msgp);
+        return 0;
     }
+
+    /*
+     * Calculate the number of FDs to send
+     * and adjust argsz
+     */
+    nfds = (irq->argsz - sizeof(*irq)) / sizeof (int);
+    irq->argsz = sizeof(*irq);
+    msgp = g_malloc0(sizeof(*msgp));
+
+    /*
+     * Send in chunks if over max_send_fds
+     */
+    for (sent_fds = 0; nfds > sent_fds; sent_fds += send_fds) {
+        VFIOUserFDs loop_fds;
+
+        send_fds = MIN(nfds - sent_fds, max_send_fds);
+
+        vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_SET_IRQS, sizeof(*msgp), 0);
+        memcpy(&msgp->irq_set, irq, irq->argsz);
+        msgp->irq_set.start += sent_fds;
+        msgp->irq_set.count = send_fds;
+
+        loop_fds.send_fds = send_fds;
+        loop_fds.recv_fds = 0;
+        loop_fds.fds = (int *)irq->data + sent_fds;
+
+        vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, &loop_fds, 0);
+        if (msgp->hdr.flags & VFIO_USER_ERROR) {
+            g_free(msgp);
+            return -msgp->hdr.error_reply;
+        }
+    }
+
+    g_free(msgp);
     return 0;
 }
 
@@ -712,7 +844,7 @@ int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index, uint64_t offset
 void vfio_user_reset(VFIODevice *vbasedev)
 {
     vfio_user_hdr_t msg;
-    
+
     vfio_user_request_msg(&msg, VFIO_USER_DEVICE_RESET, sizeof(msg), 0);
 
     vfio_user_send_recv(vbasedev->proxy, &msg, NULL, 0);

@@ -59,13 +59,24 @@ struct vfio_user_version {
     char capabilities[];
 };
 
-#define VFIO_USER_MAJOR_VER	1
+#define VFIO_USER_MAJOR_VER	0
 #define VFIO_USER_MINOR_VER	0
 
+#define VFIO_USER_CAP		"capabilities"
+
+/* "capabilities" members */
 #define VFIO_USER_CAP_MAX_FDS	"max_fds"
+#define VFIO_USER_CAP_MAX_MSG	"max_msg_size"
 #define VFIO_USER_CAP_MIGR	"migration"
 
+/* "migration" members */
 #define VFIO_USER_CAP_PGSIZE	"pgsize"
+
+#define	VFIO_USER_DEF_MAX_FDS	8
+#define	VFIO_USER_MAX_MAX_FDS	16
+
+#define	VFIO_USER_DEF_MAX_MSG	4096
+#define	VFIO_USER_MAX_MAX_MSG	(64 * 1024)
 
 /*
  * VFIO_USER_DMA_MAP
@@ -151,11 +162,9 @@ struct vfio_user_vm_intr {
     uint32_t subindex;
 };
 
-/* match channel-socket.c definition */
-#define REMOTE_MAX_FDS	16
-
 typedef struct VFIOUserFDs {
-    int numfds;
+    int send_fds;
+    int recv_fds;
     int *fds;
 } VFIOUserFDs;
 
@@ -201,7 +210,7 @@ int vfio_user_get_info(VFIODevice *vbasedev);
 int vfio_user_get_region_info(VFIODevice *vbasedev, int index, struct vfio_region_info *info,
                               VFIOUserFDs *fds);
 int vfio_user_get_irq_info(VFIODevice *vbasedev, struct vfio_irq_info *info);
-int vfio_user_set_irq_info(VFIODevice *vbasedev, struct vfio_irq_set *irq);
+int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq);
 int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
                           uint32_t count, void *data);
 int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index, uint64_t offset,

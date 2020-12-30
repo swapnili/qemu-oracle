@@ -71,7 +71,7 @@ void vfio_disable_irqindex(VFIODevice *vbasedev, int index)
     };
 
     if (vbasedev->proxy != NULL) {
-        vfio_user_set_irq_info(vbasedev, &irq_set);
+        vfio_user_set_irqs(vbasedev, &irq_set);
     } else {
         ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
     }
@@ -88,7 +88,7 @@ void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index)
     };
 
     if (vbasedev->proxy != NULL) {
-        vfio_user_set_irq_info(vbasedev, &irq_set);
+        vfio_user_set_irqs(vbasedev, &irq_set);
     } else {
         ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
     }
@@ -105,7 +105,7 @@ void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
     };
 
     if (vbasedev->proxy != NULL) {
-        vfio_user_set_irq_info(vbasedev, &irq_set);
+        vfio_user_set_irqs(vbasedev, &irq_set);
     } else {
         ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
     }
@@ -167,7 +167,7 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     *pfd = fd;
 
     if (vbasedev->proxy != NULL) {
-        ret = vfio_user_set_irq_info(vbasedev, irq_set);
+        ret = vfio_user_set_irqs(vbasedev, irq_set);
     } else {
         if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
             ret = -errno;
@@ -391,7 +391,8 @@ static int vfio_dma_map(VFIOContainer *container, MemoryRegion *mr, hwaddr iova,
         }
         fd = memory_region_get_fd(mr);
         if (fd != -1 && !(container->proxy->flags & VFIO_PROXY_SECURE)) {
-            fds.numfds = 1;
+            fds.send_fds = 1;
+            fds.recv_fds = 0;
             fds.fds = &fd;
             map.offset = qemu_ram_block_host_offset(mr->ram_block, vaddr);
             map.flags = VFIO_USER_MAPPABLE;
@@ -1501,6 +1502,41 @@ put_space_exit:
     return ret;
 }
 
+void vfio_connect_proxy(VFIOProxy *proxy, VFIOGroup *group, AddressSpace *as)
+{
+    VFIOAddressSpace *space;
+    VFIOContainer *container;
+
+    /*
+     * try to mirror vfio_connect_container()
+     * as much as possible
+     */
+
+    space = vfio_get_address_space(as);
+
+    container = g_malloc0(sizeof(*container));
+    container->space = space;
+    container->fd = -1;
+    QLIST_INIT(&container->hostwin_list);
+    container->proxy = proxy;
+
+    container->iommu_type = VFIO_TYPE1_IOMMU;
+    vfio_host_win_add(container, 0, (hwaddr)-1, 4096);
+    container->pgsizes = 4096;
+
+    QLIST_INIT(&container->group_list);
+    QLIST_INSERT_HEAD(&space->containers, container, next);
+
+    QLIST_INIT(&container->giommu_list);
+
+    group->container = container;
+    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+
+    container->listener = vfio_memory_listener;
+    memory_listener_register(&container->listener, container->space->as);
+    container->initialized = true;
+}
+
 static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
@@ -1704,6 +1740,7 @@ void vfio_put_base_device(VFIODevice *vbasedev)
         vbasedev->regions = NULL;
         if (vbasedev->regfds != NULL) {
             g_free(vbasedev->regfds);
+            vbasedev->regfds = NULL;
         }
     }
 
@@ -1744,7 +1781,7 @@ retry:
     (*info)->argsz = argsz;
 
     if (vbasedev->proxy != NULL) {
-        VFIOUserFDs fds = { 1, &fd};
+        VFIOUserFDs fds = { 0, 1, &fd};
 
         ret = vfio_user_get_region_info(vbasedev, index, *info, &fds);
     } else {
